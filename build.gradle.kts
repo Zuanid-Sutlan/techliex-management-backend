@@ -43,8 +43,10 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("com.zaxxer:HikariCP:$hikariVersion")
     implementation("org.postgresql:postgresql:$postgresVersion")
+    implementation("com.h2database:h2:2.3.232")
     implementation("at.favre.lib:bcrypt:$bcryptVersion")
 
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
+    testImplementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
 }

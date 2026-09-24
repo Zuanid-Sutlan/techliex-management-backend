@@ -68,6 +68,7 @@ class UserRepositoryImpl : UserRepository {
         return User(
             id = row[UsersTable.id],
             username = row[UsersTable.username],
+            password = "",
             name = row[UsersTable.name],
             role = row[UsersTable.role],
             isActive = row[UsersTable.isActive],

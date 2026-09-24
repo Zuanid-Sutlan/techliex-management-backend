@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
@@ -38,22 +39,50 @@ object DatabaseFactory {
 
             transaction {
                 SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
-
-                // Seed initial Admin user: name="Umair", username="umair", password="umair123" if users table is empty
-                if (UsersTable.selectAll().count() == 0L) {
-                    val adminPasswordHash = BCrypt.withDefaults().hashToString(12, "umair123".toCharArray())
-                    UsersTable.insert {
-                        it[username] = "umair"
-                        it[passwordHash] = adminPasswordHash
-                        it[name] = "Umair"
-                        it[role] = "Admin"
-                        it[isActive] = true
-                        it[createdAt] = Instant.now().toString()
-                    }
-                }
+                seedAdminUser()
             }
         } catch (e: Exception) {
-            println("Database initialization skipped or failed: ${e.message}")
+            println("⚠️ Primary database connection failed (${e.message}). Falling back to embedded H2 database for local environment...")
+            try {
+                val h2Config = HikariConfig().apply {
+                    driverClassName = "org.h2.Driver"
+                    this.jdbcUrl = "jdbc:h2:mem:techliex_db;DB_CLOSE_DELAY=-1"
+                    maximumPoolSize = 5
+                    isAutoCommit = false
+                    validate()
+                }
+                val h2DataSource = HikariDataSource(h2Config)
+                Database.connect(h2DataSource)
+
+                transaction {
+                    SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
+                    seedAdminUser()
+                }
+                println("✅ H2 in-memory database successfully initialized and seeded!")
+            } catch (h2Ex: Exception) {
+                println("❌ Database initialization error: ${h2Ex.message}")
+            }
+        }
+    }
+
+    private fun seedAdminUser() {
+        val adminPasswordHash = BCrypt.withDefaults().hashToString(12, "umair123".toCharArray())
+        val count = UsersTable.selectAll().where { UsersTable.username eq "umair" }.count()
+
+        if (count == 0L) {
+            UsersTable.insert {
+                it[username] = "umair"
+                it[passwordHash] = adminPasswordHash
+                it[name] = "Umair"
+                it[role] = "Admin"
+                it[isActive] = true
+                it[createdAt] = Instant.now().toString()
+            }
+        } else {
+            UsersTable.update({ UsersTable.username eq "umair" }) {
+                it[passwordHash] = adminPasswordHash
+                it[isActive] = true
+            }
         }
     }
 

@@ -1,9 +1,12 @@
 package com.techliex.security
 
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.techliex.presentation.dto.ApiResponse
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.response.*
 
 data class UserPrincipal(
     val id: Long,
@@ -25,6 +28,12 @@ fun Application.configureSecurity() {
                 } else {
                     null
                 }
+            }
+            challenge { _, _ ->
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    ApiResponse<Unit>(false, "Authentication required or token expired")
+                )
             }
         }
     }

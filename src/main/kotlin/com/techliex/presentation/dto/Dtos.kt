@@ -25,17 +25,19 @@ data class CreateUserRequest(
 
 @Serializable
 data class UserDto(
-    val id: Long,
-    val username: String,
-    val name: String,
-    val role: String,
-    val isActive: Boolean,
-    val createdAt: String
+    val id: Long = -1,
+    val username: String = "",
+    val password: String = "",
+    val name: String = "",
+    val role: String = "",
+    val isActive: Boolean = false,
+    val createdAt: String = ""
 )
 
 fun User.toDto(): UserDto = UserDto(
     id = id,
     username = username,
+    password = password,
     name = name,
     role = role,
     isActive = isActive,

@@ -40,15 +40,6 @@ fun Application.configureStatusPages() {
                 )
             )
         }
-        status(HttpStatusCode.Unauthorized) { call, status ->
-            call.respond(
-                status,
-                ApiResponse<Unit>(
-                    success = false,
-                    message = "Authentication required or token expired"
-                )
-            )
-        }
     }
 }
 

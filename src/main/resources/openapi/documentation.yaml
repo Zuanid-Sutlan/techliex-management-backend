@@ -55,6 +55,9 @@ components:
         username:
           type: string
           example: admin
+        password:
+          type: string
+          example: ""
         name:
           type: string
           example: Administrator
