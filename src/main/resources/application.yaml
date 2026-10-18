@@ -18,7 +18,4 @@ jwt:
   audience: "$JWT_AUDIENCE:http://0.0.0.0:8080/api/v1"
   realm: "Techliex Management API"
 
-storage:
-  uploadDir: "uploads"
-
 

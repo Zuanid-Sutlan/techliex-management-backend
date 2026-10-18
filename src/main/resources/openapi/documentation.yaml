@@ -40,10 +40,32 @@ components:
       properties:
         username:
           type: string
-          example: admin
+          example: umair
         password:
           type: string
-          example: admin123
+          example: umair123
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          example: oldpass123
+        newPassword:
+          type: string
+          example: newpass123
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - newPassword
+      properties:
+        newPassword:
+          type: string
+          example: resetpass123
 
     UserDto:
       type: object
@@ -54,13 +76,13 @@ components:
           example: 1
         username:
           type: string
-          example: admin
+          example: umair
         password:
           type: string
           example: ""
         name:
           type: string
-          example: Administrator
+          example: Umair
         role:
           type: string
           enum: [Admin, Member, Warehouse]
@@ -121,7 +143,8 @@ components:
           example: RGB backlit keyboard with blue switches
         productImageUrl:
           type: string
-          example: /uploads/keyboard.jpg
+          description: Base64 image string or Data URL
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
         sourceLink:
           type: string
           example: https://supplier.com/item/123
@@ -170,7 +193,7 @@ components:
         creatorName:
           type: string
           nullable: true
-          example: Administrator
+          example: Umair
         title:
           type: string
           example: Wireless Mechanical Keyboard
@@ -180,7 +203,8 @@ components:
           example: RGB backlit keyboard with blue switches
         productImageUrl:
           type: string
-          example: /uploads/keyboard.jpg
+          description: Base64 image string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
         sourceLink:
           type: string
           example: https://supplier.com/item/123
@@ -245,7 +269,8 @@ components:
           example: 55.00
         paymentImageUrl:
           type: string
-          example: /uploads/payment_proof_123.jpg
+          description: Base64 image string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
 
     UpdateLogisticsRequest:
       type: object
@@ -302,7 +327,8 @@ components:
           example: 55.00
         paymentImageUrl:
           type: string
-          example: /uploads/payment_proof_123.jpg
+          description: Base64 image string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
         trackId:
           type: string
           example: TRK987654321
@@ -332,13 +358,6 @@ components:
           type: number
           format: double
           example: 12500.00
-
-    UploadResponse:
-      type: object
-      properties:
-        imageUrl:
-          type: string
-          example: /uploads/a1b2c3d4-e5f6.jpg
 
 paths:
   /api/v1/auth/login:
@@ -400,6 +419,37 @@ paths:
         '404':
           description: User not found
 
+  /api/v1/auth/change-password:
+    patch:
+      tags:
+        - Authentication
+      summary: Change User Password
+      description: Allows authenticated user to change their password by verifying current old password.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Password changed successfully
+        '400':
+          description: Current password is incorrect or invalid payload
+
   /api/v1/users:
     post:
       tags:
@@ -416,7 +466,17 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: User created
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserDto'
         '403':
           description: Admin access required
         '409':
@@ -425,13 +485,56 @@ paths:
     get:
       tags:
         - User Management
-      summary: Get All Active Users
-      description: Returns a list of all active user accounts.
+      summary: Get All Active & Inactive Users
+      description: Returns a list of all user accounts (both active and inactive).
       security:
         - BearerAuth: []
       responses:
         '200':
           description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDto'
+
+  /api/v1/users/change-password:
+    patch:
+      tags:
+        - User Management
+      summary: Change Self Password
+      description: Allows authenticated user to change their own password by providing old and new password.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Password changed successfully
+        '400':
+          description: Current password is incorrect or invalid payload
 
   /api/v1/users/{username}:
     get:
@@ -449,6 +552,16 @@ paths:
       responses:
         '200':
           description: User profile found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserDto'
         '404':
           description: User not found
 
@@ -467,6 +580,89 @@ paths:
       responses:
         '200':
           description: User deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User deactivated successfully
+        '403':
+          description: Admin access required
+        '404':
+          description: User not found
+
+  /api/v1/users/{username}/activate:
+    patch:
+      tags:
+        - User Management
+      summary: Activate User Account (Admin Only)
+      description: Allows administrators to re-activate deactivated user accounts.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User activated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User activated successfully
+        '403':
+          description: Admin access required
+        '404':
+          description: User not found
+
+  /api/v1/users/{username}/reset-password:
+    patch:
+      tags:
+        - User Management
+      summary: Reset User Password (Admin Only / Forgot Password)
+      description: Allows administrators to force-reset any user's password.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: User password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User password reset successfully
         '403':
           description: Admin access required
         '404':
@@ -477,7 +673,7 @@ paths:
       tags:
         - Products
       summary: Create Product Hunt
-      description: Creates a new product hunt opportunity and optionally shares it with target team members.
+      description: Creates a new product hunt opportunity with Base64 product image string.
       security:
         - BearerAuth: []
       requestBody:
@@ -489,6 +685,16 @@ paths:
       responses:
         '201':
           description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
 
     get:
       tags:
@@ -500,6 +706,18 @@ paths:
       responses:
         '200':
           description: Products list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductDto'
 
   /api/v1/products/{id}:
     get:
@@ -518,6 +736,16 @@ paths:
       responses:
         '200':
           description: Product details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
         '404':
           description: Product not found
 
@@ -537,6 +765,17 @@ paths:
       responses:
         '200':
           description: Product deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Product deleted successfully
         '403':
           description: Admin role required
         '404':
@@ -565,6 +804,16 @@ paths:
       responses:
         '200':
           description: Warehouse information updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
         '403':
           description: Admin or Warehouse role required
         '404':
@@ -575,7 +824,7 @@ paths:
       tags:
         - Orders
       summary: Place Order
-      description: Submits a new order with address, quantity, price, and payment proof image URL.
+      description: Submits a new order with address, quantity, price, and Base64 payment proof image.
       security:
         - BearerAuth: []
       requestBody:
@@ -587,6 +836,16 @@ paths:
       responses:
         '201':
           description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderDto'
 
     get:
       tags:
@@ -598,6 +857,18 @@ paths:
       responses:
         '200':
           description: Orders retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderDto'
 
   /api/v1/orders/{id}:
     get:
@@ -616,6 +887,16 @@ paths:
       responses:
         '200':
           description: Order details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderDto'
         '404':
           description: Order not found
 
@@ -643,6 +924,16 @@ paths:
       responses:
         '200':
           description: Logistics updated and order marked as Shipped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderDto'
         '403':
           description: Admin role required
         '404':
@@ -666,6 +957,16 @@ paths:
       responses:
         '200':
           description: Order marked as Completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderDto'
         '404':
           description: Order not found
 
@@ -687,38 +988,6 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
                   data:
                     $ref: '#/components/schemas/DashboardStatsDto'
-
-  /api/v1/media/upload:
-    post:
-      tags:
-        - Media Upload
-      summary: Upload Image File
-      description: Accepts multipart/form-data image upload and returns static image URL.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-      responses:
-        '200':
-          description: File uploaded successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: '#/components/schemas/UploadResponse'
-        '400':
-          description: Invalid file payload

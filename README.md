@@ -59,9 +59,18 @@ src/main/kotlin/com/techliex/
 
 ### Run with Docker Compose Locally
 ```bash
-# Start PostgreSQL container and Ktor API server
+# Start PostgreSQL, Adminer, and Ktor API server
 docker-compose up --build
 ```
+
+### Database Web GUI (Adminer)
+A web-based database manager is pre-configured in `docker-compose.yml`:
+* **URL**: `http://localhost:8081`
+* **System**: Select `PostgreSQL`
+* **Server**: `db`
+* **Username**: `techliex`
+* **Password**: `techliex@123`
+* **Database**: `techliex_db`
 
 ---
 
@@ -387,9 +396,12 @@ Follow these exact steps when changing to a new VPS or cloud provider without lo
 | `POST` | `/api/v1/auth/login` | Public | Authenticate user & return JWT token |
 | `GET` | `/api/v1/auth/me` | Bearer JWT | Retrieve current user profile |
 | `POST` | `/api/v1/users` | Admin Only | Create new user account |
-| `GET` | `/api/v1/users` | Bearer JWT | List all active users |
+| `GET` | `/api/v1/users` | Bearer JWT | List all active & inactive users |
+| `PATCH` | `/api/v1/users/change-password` | Bearer JWT | Change self password (old & new password) |
 | `GET` | `/api/v1/users/{username}` | Bearer JWT | Get user details by username |
 | `DELETE` | `/api/v1/users/{username}` | Admin Only | Deactivate user account |
+| `PATCH` | `/api/v1/users/{username}/activate` | Admin Only | Activate user account |
+| `PATCH` | `/api/v1/users/{username}/reset-password` | Admin Only | Force-reset user password |
 | `POST` | `/api/v1/products` | Bearer JWT | Create new product hunt |
 | `GET` | `/api/v1/products` | Bearer JWT | Get visible products (role scoped) |
 | `GET` | `/api/v1/products/{id}` | Bearer JWT | Get product hunt details |
@@ -401,4 +413,3 @@ Follow these exact steps when changing to a new VPS or cloud provider without lo
 | `PATCH` | `/api/v1/orders/{id}/logistics` | Admin Only | Set tracking info & status -> `Shipped` |
 | `PATCH` | `/api/v1/orders/{id}/complete` | Bearer JWT | Set order status -> `Completed` |
 | `GET` | `/api/v1/dashboard/stats` | Bearer JWT | Get dashboard metrics |
-| `POST` | `/api/v1/media/upload` | Bearer JWT | Upload multipart image file |

@@ -1,6 +1,9 @@
 package com.techliex.data.repository
 
 import com.techliex.data.db.*
+import com.techliex.data.db.table.OrdersTable
+import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.UsersTable
 import com.techliex.domain.model.Order
 import com.techliex.domain.repository.OrderRepository
 import org.jetbrains.exposed.sql.*

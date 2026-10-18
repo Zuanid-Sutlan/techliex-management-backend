@@ -1,6 +1,10 @@
 package com.techliex.data.db
 
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.techliex.data.db.table.OrdersTable
+import com.techliex.data.db.table.ProductSharesTable
+import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.UsersTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.config.*

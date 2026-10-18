@@ -1,7 +1,7 @@
 package com.techliex.data.repository
 
 import com.techliex.data.db.DatabaseFactory
-import com.techliex.data.db.UsersTable
+import com.techliex.data.db.table.UsersTable
 import com.techliex.domain.model.User
 import com.techliex.domain.repository.UserRepository
 import org.jetbrains.exposed.sql.*
@@ -51,15 +51,35 @@ class UserRepositoryImpl : UserRepository {
         )
     }
 
-    override suspend fun getAllActiveUsers(): List<User> = DatabaseFactory.dbQuery {
+    override suspend fun getAllUsers(): List<User> = DatabaseFactory.dbQuery {
         UsersTable.selectAll()
-            .where { UsersTable.isActive eq true }
             .map { rowToUser(it) }
     }
 
     override suspend fun deactivateUser(username: String): Boolean = DatabaseFactory.dbQuery {
         val updatedRows = UsersTable.update({ UsersTable.username eq username }) {
             it[isActive] = false
+        }
+        updatedRows > 0
+    }
+
+    override suspend fun activateUser(username: String): Boolean = DatabaseFactory.dbQuery {
+        val updatedRows = UsersTable.update({ UsersTable.username eq username }) {
+            it[isActive] = true
+        }
+        updatedRows > 0
+    }
+
+    override suspend fun updatePassword(userId: Long, newPasswordHash: String): Boolean = DatabaseFactory.dbQuery {
+        val updatedRows = UsersTable.update({ UsersTable.id eq userId }) {
+            it[passwordHash] = newPasswordHash
+        }
+        updatedRows > 0
+    }
+
+    override suspend fun updatePasswordByUsername(username: String, newPasswordHash: String): Boolean = DatabaseFactory.dbQuery {
+        val updatedRows = UsersTable.update({ UsersTable.username eq username }) {
+            it[passwordHash] = newPasswordHash
         }
         updatedRows > 0
     }

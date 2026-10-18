@@ -24,6 +24,17 @@ data class CreateUserRequest(
 )
 
 @Serializable
+data class ChangePasswordRequest(
+    val oldPassword: String,
+    val newPassword: String
+)
+
+@Serializable
+data class ResetPasswordRequest(
+    val newPassword: String
+)
+
+@Serializable
 data class UserDto(
     val id: Long = -1,
     val username: String = "",

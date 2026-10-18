@@ -17,6 +17,15 @@ services:
       timeout: 5s
       retries: 5
 
+  adminer:
+    image: adminer:latest
+    container_name: techliex_adminer
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
   app:
     build:
       context: .
@@ -37,9 +46,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - uploads_data:/app/uploads
 
 volumes:
   postgres_data:
-  uploads_data:

@@ -11,7 +11,7 @@ class CreateUserUseCase(private val userRepository: UserRepository) {
 
 class GetAllUsersUseCase(private val userRepository: UserRepository) {
     suspend operator fun invoke(): List<User> {
-        return userRepository.getAllActiveUsers()
+        return userRepository.getAllUsers()
     }
 }
 

@@ -22,11 +22,14 @@ fun Application.configureRouting() {
     // Instantiate Use Cases (Domain Layer)
     val loginUseCase = LoginUseCase(userRepository)
     val getUserProfileUseCase = GetUserProfileUseCase(userRepository)
+    val changePasswordUseCase = ChangePasswordUseCase(userRepository)
 
     val createUserUseCase = CreateUserUseCase(userRepository)
     val getAllUsersUseCase = GetAllUsersUseCase(userRepository)
     val getUserByUsernameUseCase = GetUserByUsernameUseCase(userRepository)
     val deactivateUserUseCase = DeactivateUserUseCase(userRepository)
+    val activateUserUseCase = ActivateUserUseCase(userRepository)
+    val resetUserPasswordUseCase = ResetUserPasswordUseCase(userRepository)
 
     val createProductUseCase = CreateProductUseCase(productRepository)
     val getProductsUseCase = GetProductsUseCase(productRepository)
@@ -49,11 +52,18 @@ fun Application.configureRouting() {
 
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
 
-        authRoutes(loginUseCase, getUserProfileUseCase)
-        userRoutes(createUserUseCase, getAllUsersUseCase, getUserByUsernameUseCase, deactivateUserUseCase)
+        authRoutes(loginUseCase, getUserProfileUseCase, changePasswordUseCase)
+        userRoutes(
+            createUserUseCase,
+            getAllUsersUseCase,
+            getUserByUsernameUseCase,
+            deactivateUserUseCase,
+            activateUserUseCase,
+            resetUserPasswordUseCase,
+            changePasswordUseCase
+        )
         productRoutes(createProductUseCase, getProductsUseCase, getProductByIdUseCase, updateWarehouseUseCase, deleteProductUseCase)
         orderRoutes(createOrderUseCase, getOrdersUseCase, getOrderByIdUseCase, updateLogisticsUseCase, completeOrderUseCase)
         dashboardRoutes(getDashboardStatsUseCase)
-        mediaRoutes()
     }
 }

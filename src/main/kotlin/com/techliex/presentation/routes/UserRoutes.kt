@@ -1,5 +1,6 @@
 package com.techliex.presentation.routes
 
+import com.techliex.domain.usecase.auth.ChangePasswordUseCase
 import com.techliex.domain.usecase.user.*
 import com.techliex.presentation.dto.*
 import com.techliex.security.PasswordUtils
@@ -14,7 +15,10 @@ fun Route.userRoutes(
     createUserUseCase: CreateUserUseCase,
     getAllUsersUseCase: GetAllUsersUseCase,
     getUserByUsernameUseCase: GetUserByUsernameUseCase,
-    deactivateUserUseCase: DeactivateUserUseCase
+    deactivateUserUseCase: DeactivateUserUseCase,
+    activateUserUseCase: ActivateUserUseCase,
+    resetUserPasswordUseCase: ResetUserPasswordUseCase,
+    changePasswordUseCase: ChangePasswordUseCase
 ) {
     route("/api/v1/users") {
         authenticate("auth-jwt") {
@@ -42,10 +46,34 @@ fun Route.userRoutes(
                 call.respond(HttpStatusCode.Created, ApiResponse(true, "User created successfully", newUser.toDto()))
             }
 
-            // Get all active users
+            // Get all active & inactive users
             get {
                 val users = getAllUsersUseCase().map { it.toDto() }
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Users retrieved", users))
+            }
+
+            // Change self password (oldPassword & newPassword)
+            patch("/change-password") {
+                val principal = call.getUserPrincipal()
+                val req = try {
+                    call.receive<ChangePasswordRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val newPasswordHash = PasswordUtils.hashPassword(req.newPassword)
+                val success = changePasswordUseCase(
+                    userId = principal.id,
+                    username = principal.username,
+                    verifyOldPassword = { hash -> PasswordUtils.verifyPassword(req.oldPassword, hash) },
+                    newPasswordHash = newPasswordHash
+                )
+
+                if (success) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "Password changed successfully"))
+                } else {
+                    call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Current password is incorrect"))
+                }
             }
 
             // Get user by username
@@ -72,6 +100,50 @@ fun Route.userRoutes(
                 val success = deactivateUserUseCase(username)
                 if (success) {
                     call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User deactivated successfully"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "User not found"))
+                }
+            }
+
+            // Admin only: re-activate user account
+            patch("/{username}/activate") {
+                val principal = call.getUserPrincipal()
+                if (principal.role != "Admin") {
+                    return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Admin access required"))
+                }
+
+                val username = call.parameters["username"]
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Username parameter missing"))
+
+                val success = activateUserUseCase(username)
+                if (success) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User activated successfully"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "User not found"))
+                }
+            }
+
+            // Admin only: reset any user's password (forgot password override)
+            patch("/{username}/reset-password") {
+                val principal = call.getUserPrincipal()
+                if (principal.role != "Admin") {
+                    return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Admin access required"))
+                }
+
+                val username = call.parameters["username"]
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Username parameter missing"))
+
+                val req = try {
+                    call.receive<ResetPasswordRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val newPasswordHash = PasswordUtils.hashPassword(req.newPassword)
+                val success = resetUserPasswordUseCase(username, newPasswordHash)
+
+                if (success) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User password reset successfully"))
                 } else {
                     call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "User not found"))
                 }
