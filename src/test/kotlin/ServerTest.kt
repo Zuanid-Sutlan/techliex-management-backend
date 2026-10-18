@@ -44,7 +44,16 @@ class ServerTest {
         assertEquals(HttpStatusCode.OK, rootResponse.status)
         assertTrue(rootResponse.bodyAsText().contains("Techliex Management API Service"))
 
-        // 2. Login as Admin (Umair)
+        // 2. App Version API Check
+        val versionResponse = client.get("/api/v1/version")
+        assertEquals(HttpStatusCode.OK, versionResponse.status)
+        val versionData = versionResponse.body<ApiResponse<VersionDto>>().data
+        assertNotNull(versionData)
+        assertEquals("1.0.0-alpha1", versionData.versionName)
+        assertEquals(10001, versionData.versionCode)
+        assertEquals("Techliex Management", versionData.name)
+
+        // 3. Login as Admin (Umair)
         val loginResponse = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(LoginRequest(username = "umair", password = "umair123"))
@@ -56,7 +65,7 @@ class ServerTest {
         assertEquals("umair", loginData.user.username)
         assertEquals("Admin", loginData.user.role)
 
-        // 3. Get Me Profile
+        // 4. Get Me Profile
         val meResponse = client.get("/api/v1/auth/me") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -65,7 +74,7 @@ class ServerTest {
         assertNotNull(meData)
         assertEquals("Umair", meData.name)
 
-        // 4. Create New Member User
+        // 5. Create New Member User
         val createUserResponse = client.post("/api/v1/users") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -73,13 +82,13 @@ class ServerTest {
         }
         assertEquals(HttpStatusCode.Created, createUserResponse.status)
 
-        // 5. Get Users List
+        // 6. Get Users List
         val getUsersResponse = client.get("/api/v1/users") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, getUsersResponse.status)
 
-        // 6. Change Password for current user
+        // 7. Change Password for current user
         val changePassResponse = client.patch("/api/v1/auth/change-password") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -94,7 +103,7 @@ class ServerTest {
             setBody(ChangePasswordRequest(oldPassword = "umair123new", newPassword = "umair123"))
         }
 
-        // 7. Admin Reset Password for target user (john_doe)
+        // 8. Admin Reset Password for target user (john_doe)
         val resetPassResponse = client.patch("/api/v1/users/john_doe/reset-password") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -102,7 +111,7 @@ class ServerTest {
         }
         assertEquals(HttpStatusCode.OK, resetPassResponse.status)
 
-        // 8. Admin Deactivate & Re-activate User (john_doe)
+        // 9. Admin Deactivate & Re-activate User (john_doe)
         val deactivateResponse = client.delete("/api/v1/users/john_doe") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -113,7 +122,7 @@ class ServerTest {
         }
         assertEquals(HttpStatusCode.OK, activateResponse.status)
 
-        // 9. Create Product Hunt
+        // 10. Create Product Hunt
         val createProductResponse = client.post("/api/v1/products") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -133,13 +142,13 @@ class ServerTest {
         assertNotNull(productData)
         val productId = productData.id
 
-        // 10. Get Products List
+        // 11. Get Products List
         val getProductsResponse = client.get("/api/v1/products") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, getProductsResponse.status)
 
-        // 11. Update Warehouse Info
+        // 12. Update Warehouse Info
         val updateWarehouseResponse = client.patch("/api/v1/products/$productId/warehouse") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -147,7 +156,7 @@ class ServerTest {
         }
         assertEquals(HttpStatusCode.OK, updateWarehouseResponse.status)
 
-        // 12. Create Order
+        // 13. Create Order
         val createOrderResponse = client.post("/api/v1/orders") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -166,13 +175,13 @@ class ServerTest {
         assertNotNull(orderData)
         val orderId = orderData.id
 
-        // 13. Get Orders List
+        // 14. Get Orders List
         val getOrdersResponse = client.get("/api/v1/orders") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, getOrdersResponse.status)
 
-        // 14. Update Logistics
+        // 15. Update Logistics
         val updateLogisticsResponse = client.patch("/api/v1/orders/$orderId/logistics") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -180,13 +189,13 @@ class ServerTest {
         }
         assertEquals(HttpStatusCode.OK, updateLogisticsResponse.status)
 
-        // 15. Complete Order
+        // 16. Complete Order
         val completeOrderResponse = client.patch("/api/v1/orders/$orderId/complete") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, completeOrderResponse.status)
 
-        // 16. Get Dashboard Stats
+        // 17. Get Dashboard Stats
         val statsResponse = client.get("/api/v1/dashboard/stats") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }

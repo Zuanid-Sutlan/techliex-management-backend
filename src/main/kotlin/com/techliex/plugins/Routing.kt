@@ -5,6 +5,7 @@ import com.techliex.domain.usecase.auth.*
 import com.techliex.domain.usecase.dashboard.*
 import com.techliex.domain.usecase.order.*
 import com.techliex.domain.usecase.product.*
+import com.techliex.domain.usecase.system.GetAppVersionUseCase
 import com.techliex.domain.usecase.user.*
 import com.techliex.presentation.routes.*
 import io.ktor.server.application.*
@@ -44,6 +45,7 @@ fun Application.configureRouting() {
     val completeOrderUseCase = CompleteOrderUseCase(orderRepository)
 
     val getDashboardStatsUseCase = GetDashboardStatsUseCase(dashboardRepository)
+    val getAppVersionUseCase = GetAppVersionUseCase()
 
     routing {
         get("/") {
@@ -52,6 +54,7 @@ fun Application.configureRouting() {
 
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
 
+        systemRoutes(getAppVersionUseCase)
         authRoutes(loginUseCase, getUserProfileUseCase, changePasswordUseCase)
         userRoutes(
             createUserUseCase,

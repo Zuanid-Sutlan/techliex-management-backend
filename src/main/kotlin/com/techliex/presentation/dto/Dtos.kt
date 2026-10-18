@@ -176,6 +176,19 @@ fun DashboardStats.toDto(): DashboardStatsDto = DashboardStatsDto(
 )
 
 @Serializable
+data class VersionDto(
+    val versionName: String,
+    val versionCode: Int,
+    val name: String
+)
+
+fun AppVersion.toDto(): VersionDto = VersionDto(
+    versionName = versionName,
+    versionCode = versionCode,
+    name = name
+)
+
+@Serializable
 data class ApiResponse<T>(
     val success: Boolean,
     val message: String? = null,
