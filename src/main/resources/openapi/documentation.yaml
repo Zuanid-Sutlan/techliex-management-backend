@@ -32,6 +32,19 @@ components:
           type: object
           nullable: true
 
+    VersionDto:
+      type: object
+      properties:
+        versionName:
+          type: string
+          example: 1.0.0-alpha1
+        versionCode:
+          type: integer
+          example: 10001
+        name:
+          type: string
+          example: Techliex Management
+
     LoginRequest:
       type: object
       required:
@@ -360,6 +373,29 @@ components:
           example: 12500.00
 
 paths:
+  /api/v1/version:
+    get:
+      tags:
+        - System
+      summary: Get Application Version
+      description: Returns semantic version name, calculated version code, and application name.
+      responses:
+        '200':
+          description: Version details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: App version retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/VersionDto'
+
   /api/v1/auth/login:
     post:
       tags:
