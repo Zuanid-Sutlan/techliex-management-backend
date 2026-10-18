@@ -45,12 +45,13 @@ object DatabaseFactory {
                 SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
                 seedAdminUser()
             }
+            println("✅ Successfully connected to PostgreSQL database!")
         } catch (e: Exception) {
-            println("⚠️ Primary database connection failed (${e.message}). Falling back to embedded H2 database for local environment...")
+            println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
             try {
                 val h2Config = HikariConfig().apply {
                     driverClassName = "org.h2.Driver"
-                    this.jdbcUrl = "jdbc:h2:mem:techliex_db;DB_CLOSE_DELAY=-1"
+                    this.jdbcUrl = "jdbc:h2:./data/techliex_db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"
                     maximumPoolSize = 5
                     isAutoCommit = false
                     validate()
@@ -62,7 +63,7 @@ object DatabaseFactory {
                     SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
                     seedAdminUser()
                 }
-                println("✅ H2 in-memory database successfully initialized and seeded!")
+                println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
                 println("❌ Database initialization error: ${h2Ex.message}")
             }

@@ -4,3 +4,8 @@
 /build/classes/
 /build/classes/kotlin/main/
 /build/classes/kotlin/test/
+
+# Local database file storage
+/data/
+*.mv.db
+*.trace.db

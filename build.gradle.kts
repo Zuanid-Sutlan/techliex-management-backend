@@ -34,6 +34,7 @@ group = "com.techliex"
 version = getVersionName()
 
 val generateVersionProperties = tasks.register("generateVersionProperties") {
+    inputs.file(rootProject.file("gradle.properties"))
     val outputDir = layout.buildDirectory.dir("generated/resources").get().asFile
     outputs.dir(outputDir)
     doLast {
@@ -47,6 +48,10 @@ val generateVersionProperties = tasks.register("generateVersionProperties") {
             """.trimIndent()
         )
     }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(generateVersionProperties)
 }
 
 sourceSets {
