@@ -393,6 +393,9 @@ Follow these exact steps when changing to a new VPS or cloud provider without lo
 
 | Method | Endpoint | Authorization | Description |
 | :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Public | Check if server is running and database is connected |
+| `GET` | `/api/v1/health` | Public | Check if server is running and database is connected |
+| `GET` | `/api/v1/version` | Public | Retrieve application version |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate user & return JWT token |
 | `GET` | `/api/v1/auth/me` | Bearer JWT | Retrieve current user profile |
 | `POST` | `/api/v1/users` | Admin Only | Create new user account |
@@ -413,3 +416,83 @@ Follow these exact steps when changing to a new VPS or cloud provider without lo
 | `PATCH` | `/api/v1/orders/{id}/logistics` | Admin Only | Set tracking info & status -> `Shipped` |
 | `PATCH` | `/api/v1/orders/{id}/complete` | Bearer JWT | Set order status -> `Completed` |
 | `GET` | `/api/v1/dashboard/stats` | Bearer JWT | Get dashboard metrics |
+
+---
+
+## Dokploy VPS Deployment & Live Environment Flow
+
+### 1. Create Separate Database Service in Dokploy
+1. In Dokploy Dashboard, navigate to **Databases** -> **Create Database** -> **PostgreSQL**.
+2. Configure your database settings:
+   - Database Name: `techliex_db`
+   - Username: `techliex`
+   - Password: `<your_secure_db_password>`
+3. Note down the Dokploy internal network host (e.g. `techliex-db`) or external connection details.
+
+### 2. Create Application Service in Dokploy
+1. In Dokploy Dashboard, navigate to **Applications** -> **Create Application**.
+2. Connect your Git repository (`techliex-management`).
+3. Select **Dockerfile** as the build method.
+
+### 3. Setting Up Live Production Environment Variables
+In Dokploy Application Settings under **Environment Variables**, set your live production environment:
+
+```env
+# Database Credentials (Points to your separate Dokploy PostgreSQL service)
+DB_JDBC_URL=jdbc:postgresql://<dokploy-postgres-host>:5432/techliex_db
+DB_USER=techliex
+DB_PASSWORD=<your_secure_db_password>
+DB_DRIVER=org.postgresql.Driver
+
+# Alternative: Standard DATABASE_URL (Dokploy auto-parses postgres:// or postgresql:// formats)
+# DATABASE_URL=postgres://techliex:<your_secure_db_password>@<dokploy-postgres-host>:5432/techliex_db
+
+# Security & JWT Tokens
+JWT_SECRET=<your_production_secret_key>
+JWT_ISSUER=https://api.yourdomain.com/
+JWT_AUDIENCE=https://api.yourdomain.com/api/v1
+```
+
+---
+
+## Server & Database Health Testing Route
+
+To verify that your server is running and active database connection is working on your live domain or VPS IP:
+
+### Request
+```http
+GET /health
+# or
+GET /api/v1/health
+```
+
+### Healthy Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Server and Database are healthy",
+  "data": {
+    "serverStatus": "UP",
+    "dbStatus": "CONNECTED",
+    "databaseType": "PostgreSQL",
+    "dbMessage": "Database is connected and healthy.",
+    "timestamp": "2025-02-23T12:00:00Z"
+  }
+}
+```
+
+### Database Error Response (503 Service Unavailable)
+```json
+{
+  "success": false,
+  "message": "Database connection error",
+  "data": {
+    "serverStatus": "UP",
+    "dbStatus": "DISCONNECTED",
+    "databaseType": "PostgreSQL",
+    "dbMessage": "Database check failed: Connection refused",
+    "timestamp": "2025-02-23T12:00:00Z"
+  }
+}
+```
+

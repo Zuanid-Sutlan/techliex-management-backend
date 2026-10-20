@@ -189,6 +189,15 @@ fun AppVersion.toDto(): VersionDto = VersionDto(
 )
 
 @Serializable
+data class HealthCheckDto(
+    val serverStatus: String,
+    val dbStatus: String,
+    val databaseType: String,
+    val dbMessage: String,
+    val timestamp: String
+)
+
+@Serializable
 data class ApiResponse<T>(
     val success: Boolean,
     val message: String? = null,

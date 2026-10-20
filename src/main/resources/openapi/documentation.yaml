@@ -45,6 +45,25 @@ components:
           type: string
           example: Techliex Management
 
+    HealthCheckDto:
+      type: object
+      properties:
+        serverStatus:
+          type: string
+          example: UP
+        dbStatus:
+          type: string
+          example: CONNECTED
+        databaseType:
+          type: string
+          example: PostgreSQL
+        dbMessage:
+          type: string
+          example: Database is connected and healthy.
+        timestamp:
+          type: string
+          example: "2025-02-23T12:00:00Z"
+
     LoginRequest:
       type: object
       required:
@@ -373,6 +392,44 @@ components:
           example: 12500.00
 
 paths:
+  /api/v1/health:
+    get:
+      tags:
+        - System
+      summary: Server & Database Health Check
+      description: Verifies whether the server is running and tests active PostgreSQL database connectivity.
+      responses:
+        '200':
+          description: Server and Database are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Server and Database are healthy
+                  data:
+                    $ref: '#/components/schemas/HealthCheckDto'
+        '503':
+          description: Database connection error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Database connection error
+                  data:
+                    $ref: '#/components/schemas/HealthCheckDto'
+
   /api/v1/version:
     get:
       tags:

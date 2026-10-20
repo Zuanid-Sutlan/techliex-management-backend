@@ -18,14 +18,24 @@ import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransacti
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
 
+data class DbHealthStatus(
+    val isConnected: Boolean,
+    val databaseType: String,
+    val message: String
+)
+
 object DatabaseFactory {
 
+    @Volatile
+    private var activeDataSource: HikariDataSource? = null
+
+    @Volatile
+    var currentDbType: String = "Not Initialized"
+        private set
+
     fun init(config: ApplicationConfig) {
+        val (jdbcUrl, dbUser, dbPassword) = parseConnectionDetails(config)
         val driverClass = config.propertyOrNull("db.driver")?.getString() ?: "org.postgresql.Driver"
-        val jdbcUrl = config.propertyOrNull("db.jdbcUrl")?.getString() ?: "jdbc:postgresql://localhost:5432/techliex_db"
-        // val jdbcUrl = config.propertyOrNull("db.jdbcUrl")?.getString() ?: "postgresql://techliex:techliex@123@techliex-techliex-db-votos1:5432/techliex_db"
-        val dbUser = config.propertyOrNull("db.user")?.getString() ?: "techliex"
-        val dbPassword = config.propertyOrNull("db.password")?.getString() ?: "techliex@123"
 
         try {
             val hikariConfig = HikariConfig().apply {
@@ -41,12 +51,14 @@ object DatabaseFactory {
 
             val dataSource = HikariDataSource(hikariConfig)
             Database.connect(dataSource)
+            activeDataSource = dataSource
+            currentDbType = "PostgreSQL"
 
             transaction {
                 SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
                 seedAdminUser()
             }
-            println("✅ Successfully connected to PostgreSQL database!")
+            println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
         } catch (e: Exception) {
             println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
             try {
@@ -59,6 +71,8 @@ object DatabaseFactory {
                 }
                 val h2DataSource = HikariDataSource(h2Config)
                 Database.connect(h2DataSource)
+                activeDataSource = h2DataSource
+                currentDbType = "H2 File-based Fallback"
 
                 transaction {
                     SchemaUtils.create(UsersTable, ProductsTable, ProductSharesTable, OrdersTable)
@@ -66,8 +80,85 @@ object DatabaseFactory {
                 }
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
+                currentDbType = "Disconnected"
                 println("❌ Database initialization error: ${h2Ex.message}")
             }
+        }
+    }
+
+    private fun parseConnectionDetails(config: ApplicationConfig): Triple<String, String, String> {
+        val rawUrl = System.getenv("DATABASE_URL")
+            ?: config.propertyOrNull("db.jdbcUrl")?.getString()
+            ?: "jdbc:postgresql://localhost:5432/techliex_db"
+
+        var user = System.getenv("DB_USER")
+            ?: config.propertyOrNull("db.user")?.getString()
+            ?: "techliex"
+
+        var password = System.getenv("DB_PASSWORD")
+            ?: config.propertyOrNull("db.password")?.getString()
+            ?: "techliex@123"
+
+        var jdbcUrl = rawUrl
+
+        // Convert postgres:// or postgresql:// to jdbc:postgresql://
+        if (jdbcUrl.startsWith("postgres://") || jdbcUrl.startsWith("postgresql://")) {
+            jdbcUrl = jdbcUrl.replaceFirst("postgres://", "jdbc:postgresql://")
+                .replaceFirst("postgresql://", "jdbc:postgresql://")
+        }
+
+        // Handle credentials embedded in URL: jdbc:postgresql://user:pass@host:port/dbname
+        if (jdbcUrl.contains("@")) {
+            try {
+                val schemeEndIndex = jdbcUrl.indexOf("://") + 3
+                val atIndex = jdbcUrl.indexOf("@")
+                val userInfo = jdbcUrl.substring(schemeEndIndex, atIndex)
+                val rest = jdbcUrl.substring(atIndex + 1)
+
+                val parts = userInfo.split(":")
+                if (parts.isNotEmpty() && parts[0].isNotBlank()) {
+                    user = parts[0]
+                }
+                if (parts.size > 1 && parts[1].isNotBlank()) {
+                    password = parts[1]
+                }
+
+                jdbcUrl = jdbcUrl.substring(0, schemeEndIndex) + rest
+            } catch (_: Exception) {
+                // Ignore parse errors, fall back to raw URL
+            }
+        }
+
+        if (!jdbcUrl.startsWith("jdbc:")) {
+            jdbcUrl = "jdbc:$jdbcUrl"
+        }
+
+        return Triple(jdbcUrl, user, password)
+    }
+
+    fun checkHealth(): DbHealthStatus {
+        if (activeDataSource == null) {
+            return DbHealthStatus(
+                isConnected = false,
+                databaseType = "Not Initialized",
+                message = "Database datasource is not initialized."
+            )
+        }
+        return try {
+            transaction {
+                exec("SELECT 1;") { }
+            }
+            DbHealthStatus(
+                isConnected = true,
+                databaseType = currentDbType,
+                message = "Database is connected and healthy."
+            )
+        } catch (e: Exception) {
+            DbHealthStatus(
+                isConnected = false,
+                databaseType = currentDbType,
+                message = "Database check failed: ${e.message}"
+            )
         }
     }
 
