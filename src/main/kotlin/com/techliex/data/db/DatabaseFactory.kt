@@ -86,8 +86,9 @@ object DatabaseFactory {
         }
     }
 
-    private fun parseConnectionDetails(config: ApplicationConfig): Triple<String, String, String> {
+    internal fun parseConnectionDetails(config: ApplicationConfig): Triple<String, String, String> {
         val rawUrl = System.getenv("DATABASE_URL")
+            ?: System.getenv("DB_JDBC_URL")
             ?: config.propertyOrNull("db.jdbcUrl")?.getString()
             ?: "jdbc:postgresql://localhost:5432/techliex_db"
 
@@ -99,33 +100,44 @@ object DatabaseFactory {
             ?: config.propertyOrNull("db.password")?.getString()
             ?: "techliex@123"
 
-        var jdbcUrl = rawUrl
+        var jdbcUrl = rawUrl.trim()
 
-        // Convert postgres:// or postgresql:// to jdbc:postgresql://
-        if (jdbcUrl.startsWith("postgres://") || jdbcUrl.startsWith("postgresql://")) {
-            jdbcUrl = jdbcUrl.replaceFirst("postgres://", "jdbc:postgresql://")
-                .replaceFirst("postgresql://", "jdbc:postgresql://")
+        // Normalize postgres:// or postgresql:// scheme to jdbc:postgresql://
+        if (jdbcUrl.startsWith("postgres://")) {
+            jdbcUrl = "jdbc:postgresql://" + jdbcUrl.removePrefix("postgres://")
+        } else if (jdbcUrl.startsWith("postgresql://")) {
+            jdbcUrl = "jdbc:postgresql://" + jdbcUrl.removePrefix("postgresql://")
         }
 
-        // Handle credentials embedded in URL: jdbc:postgresql://user:pass@host:port/dbname
-        if (jdbcUrl.contains("@")) {
-            try {
-                val schemeEndIndex = jdbcUrl.indexOf("://") + 3
-                val atIndex = jdbcUrl.indexOf("@")
-                val userInfo = jdbcUrl.substring(schemeEndIndex, atIndex)
-                val rest = jdbcUrl.substring(atIndex + 1)
+        // Handle credentials embedded in URL (e.g. jdbc:postgresql://user:pass@host:port/dbname)
+        if (jdbcUrl.startsWith("jdbc:postgresql://")) {
+            val pathAndHostPart = jdbcUrl.removePrefix("jdbc:postgresql://")
 
-                val parts = userInfo.split(":")
-                if (parts.isNotEmpty() && parts[0].isNotBlank()) {
-                    user = parts[0]
-                }
-                if (parts.size > 1 && parts[1].isNotBlank()) {
-                    password = parts[1]
+            // Find boundary where database name or query parameters start
+            val slashIndex = pathAndHostPart.indexOf('/')
+            val hostAndUserSection = if (slashIndex != -1) {
+                pathAndHostPart.substring(0, slashIndex)
+            } else {
+                pathAndHostPart
+            }
+
+            // Find the LAST '@' before '/' which separates user:pass credentials from the host
+            val lastAtIndex = hostAndUserSection.lastIndexOf('@')
+            if (lastAtIndex != -1) {
+                val userInfo = hostAndUserSection.substring(0, lastAtIndex)
+                val hostPort = hostAndUserSection.substring(lastAtIndex + 1)
+
+                // userInfo is user:password
+                val colonIndex = userInfo.indexOf(':')
+                if (colonIndex != -1) {
+                    user = java.net.URLDecoder.decode(userInfo.substring(0, colonIndex), "UTF-8")
+                    password = java.net.URLDecoder.decode(userInfo.substring(colonIndex + 1), "UTF-8")
+                } else {
+                    user = java.net.URLDecoder.decode(userInfo, "UTF-8")
                 }
 
-                jdbcUrl = jdbcUrl.substring(0, schemeEndIndex) + rest
-            } catch (_: Exception) {
-                // Ignore parse errors, fall back to raw URL
+                val restOfUrl = if (slashIndex != -1) pathAndHostPart.substring(slashIndex) else ""
+                jdbcUrl = "jdbc:postgresql://$hostPort$restOfUrl"
             }
         }
 

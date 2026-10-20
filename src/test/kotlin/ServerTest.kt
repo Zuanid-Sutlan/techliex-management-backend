@@ -18,6 +18,16 @@ import kotlin.test.*
 class ServerTest {
 
     @Test
+    fun `test database connection URL parsing with @ in password`() = testApplication {
+        application {
+            val (url, user, password) = DatabaseFactory.parseConnectionDetails(environment.config)
+            assertTrue(url.startsWith("jdbc:postgresql://"))
+            assertEquals("techliex", user)
+            assertEquals("techliex@123", password)
+        }
+    }
+
+    @Test
     fun `test complete API flow`() = testApplication {
         application {
             DatabaseFactory.init(environment.config)
