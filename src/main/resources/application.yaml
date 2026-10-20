@@ -8,8 +8,7 @@ ktor:
 
 db:
   driver: "$DB_DRIVER:org.postgresql.Driver"
-  # jdbcUrl: "$DB_JDBC_URL:jdbc:postgresql://localhost:5432/techliex_db"
-  jdbcUrl: "$DB_JDBC_URL:jdbc:postgresql://techliex:techliex@123@techliex-techliex-db-votos1:5432/techliex_db"
+  jdbcUrl: "$DB_JDBC_URL:jdbc:postgresql://localhost:5432/techliex_db"
   user: "$DB_USER:techliex"
   password: "$DB_PASSWORD:techliex@123"
 

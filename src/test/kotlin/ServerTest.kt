@@ -44,7 +44,22 @@ class ServerTest {
         assertEquals(HttpStatusCode.OK, rootResponse.status)
         assertTrue(rootResponse.bodyAsText().contains("Techliex Management API Service"))
 
-        // 2. App Version API Check
+        // 2. Health Check API Test (/health and /api/v1/health)
+        val healthResponse = client.get("/health")
+        assertEquals(HttpStatusCode.OK, healthResponse.status)
+        val healthData = healthResponse.body<ApiResponse<HealthCheckDto>>().data
+        assertNotNull(healthData)
+        assertEquals("UP", healthData.serverStatus)
+        assertEquals("CONNECTED", healthData.dbStatus)
+
+        val apiHealthResponse = client.get("/api/v1/health")
+        assertEquals(HttpStatusCode.OK, apiHealthResponse.status)
+        val apiHealthData = apiHealthResponse.body<ApiResponse<HealthCheckDto>>().data
+        assertNotNull(apiHealthData)
+        assertEquals("UP", apiHealthData.serverStatus)
+        assertEquals("CONNECTED", apiHealthData.dbStatus)
+
+        // 3. App Version API Check
         val versionResponse = client.get("/api/v1/version")
         assertEquals(HttpStatusCode.OK, versionResponse.status)
         val versionData = versionResponse.body<ApiResponse<VersionDto>>().data
@@ -53,7 +68,7 @@ class ServerTest {
         assertTrue(versionData.versionCode >= 1)
         assertEquals("Techliex Management", versionData.name)
 
-        // 3. Login as Admin (Umair)
+        // 4. Login as Admin (Umair)
         val loginResponse = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(LoginRequest(username = "umair", password = "umair123"))
@@ -65,7 +80,7 @@ class ServerTest {
         assertEquals("umair", loginData.user.username)
         assertEquals("Admin", loginData.user.role)
 
-        // 4. Get Me Profile
+        // 5. Get Me Profile
         val meResponse = client.get("/api/v1/auth/me") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -74,21 +89,23 @@ class ServerTest {
         assertNotNull(meData)
         assertEquals("Umair", meData.name)
 
-        // 5. Create New Member User
+        val testUser = "john_doe_${System.currentTimeMillis()}"
+
+        // 6. Create New Member User
         val createUserResponse = client.post("/api/v1/users") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody(CreateUserRequest(username = "john_doe", password = "password123", name = "John Doe", role = "Member"))
+            setBody(CreateUserRequest(username = testUser, password = "password123", name = "John Doe", role = "Member"))
         }
         assertEquals(HttpStatusCode.Created, createUserResponse.status)
 
-        // 6. Get Users List
+        // 7. Get Users List
         val getUsersResponse = client.get("/api/v1/users") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, getUsersResponse.status)
 
-        // 7. Change Password for current user
+        // 8. Change Password for current user
         val changePassResponse = client.patch("/api/v1/auth/change-password") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -103,26 +120,26 @@ class ServerTest {
             setBody(ChangePasswordRequest(oldPassword = "umair123new", newPassword = "umair123"))
         }
 
-        // 8. Admin Reset Password for target user (john_doe)
-        val resetPassResponse = client.patch("/api/v1/users/john_doe/reset-password") {
+        // 9. Admin Reset Password for target user
+        val resetPassResponse = client.patch("/api/v1/users/$testUser/reset-password") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
             setBody(ResetPasswordRequest(newPassword = "newpassword123"))
         }
         assertEquals(HttpStatusCode.OK, resetPassResponse.status)
 
-        // 9. Admin Deactivate & Re-activate User (john_doe)
-        val deactivateResponse = client.delete("/api/v1/users/john_doe") {
+        // 10. Admin Deactivate & Re-activate User
+        val deactivateResponse = client.delete("/api/v1/users/$testUser") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, deactivateResponse.status)
 
-        val activateResponse = client.patch("/api/v1/users/john_doe/activate") {
+        val activateResponse = client.patch("/api/v1/users/$testUser/activate") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, activateResponse.status)
 
-        // 10. Create Product Hunt
+        // 11. Create Product Hunt
         val createProductResponse = client.post("/api/v1/products") {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
@@ -134,7 +151,7 @@ class ServerTest {
                 sourcePrice = 20.0,
                 referenceLink = "https://amazon.com/item/1",
                 referencePrice = 50.0,
-                shareWithUsernames = listOf("john_doe")
+                shareWithUsernames = listOf(testUser)
             ))
         }
         assertEquals(HttpStatusCode.Created, createProductResponse.status)
