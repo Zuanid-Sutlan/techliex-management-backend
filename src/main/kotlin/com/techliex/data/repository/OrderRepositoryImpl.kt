@@ -3,9 +3,12 @@ package com.techliex.data.repository
 import com.techliex.data.db.*
 import com.techliex.data.db.table.OrdersTable
 import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.RefundMessagesTable
 import com.techliex.data.db.table.UsersTable
 import com.techliex.domain.model.Order
+import com.techliex.domain.model.RefundMessage
 import com.techliex.domain.repository.OrderRepository
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import java.math.BigDecimal
 import java.time.Instant
@@ -14,28 +17,50 @@ class OrderRepositoryImpl : OrderRepository {
 
     override suspend fun createOrder(
         userId: Long,
-        orderDate: String,
+        orderNumber: String?,
+        orderDate: String?,
         productId: Long,
         address: String,
-        variationNote: String?,
+        note: String?,
         quantity: Int,
-        listingPrice: Double,
-        paymentImageUrl: String
+        listingPrice: Double?,
+        paymentScreenshot: String?
     ): Order = DatabaseFactory.dbQuery {
+        val productRow = ProductsTable.selectAll()
+            .where { ProductsTable.id eq productId }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Product not found with ID: $productId")
+
+        val pTitle = productRow[ProductsTable.title]
+        val pImg = productRow[ProductsTable.productImageUrl]
+        val pSourcePrice = productRow[ProductsTable.sourcePrice]
+        val pRefPrice = productRow[ProductsTable.referencePrice]
+
+        val effectiveListingPrice = listingPrice ?: pRefPrice.toDouble()
+        val effectiveOrderDate = if (!orderDate.isNullOrBlank()) orderDate else Instant.now().toString().take(10)
+        val effectiveScreenshot = paymentScreenshot ?: ""
+        val effectiveOrderNumber = orderNumber ?: ""
         val now = Instant.now().toString()
+
         val generatedId = OrdersTable.insert {
-            it[OrdersTable.orderDate] = orderDate
+            it[OrdersTable.orderNumber] = effectiveOrderNumber
+            it[OrdersTable.orderDate] = effectiveOrderDate
             it[OrdersTable.userId] = userId
             it[OrdersTable.productId] = productId
+            it[OrdersTable.productName] = pTitle
+            it[OrdersTable.productImage] = pImg
+            it[OrdersTable.productSourcePrice] = pSourcePrice
             it[OrdersTable.address] = address
-            it[OrdersTable.variationNote] = variationNote
+            it[OrdersTable.note] = note
+            it[OrdersTable.variationNote] = note
             it[OrdersTable.quantity] = quantity
-            it[OrdersTable.listingPrice] = BigDecimal.valueOf(listingPrice)
-            it[OrdersTable.paymentImageUrl] = paymentImageUrl
-            it[trackId] = ""
-            it[company] = ""
-            it[status] = "Active"
-            it[createdAt] = now
+            it[OrdersTable.listingPrice] = BigDecimal.valueOf(effectiveListingPrice)
+            it[OrdersTable.paymentScreenshot] = effectiveScreenshot
+            it[OrdersTable.paymentImageUrl] = effectiveScreenshot
+            it[OrdersTable.trackId] = ""
+            it[OrdersTable.company] = ""
+            it[OrdersTable.status] = "Active"
+            it[OrdersTable.createdAt] = now
         } get OrdersTable.id
 
         getOrderByIdInternal(generatedId)!!
@@ -51,9 +76,9 @@ class OrderRepositoryImpl : OrderRepository {
         val orders = query.map { rowToOrder(it) }
 
         orders.sortedWith(Comparator { o1, o2 ->
-            val priority = mapOf("Active" to 1, "Shipped" to 2, "Completed" to 3)
-            val p1 = priority[o1.status] ?: 4
-            val p2 = priority[o2.status] ?: 4
+            val priority = mapOf("Active" to 1, "Shipped" to 2, "Completed" to 3, "Refund Requested" to 4, "Refund Pending" to 5)
+            val p1 = priority[o1.status] ?: 6
+            val p2 = priority[o2.status] ?: 6
             p1.compareTo(p2)
         })
     }
@@ -80,6 +105,85 @@ class OrderRepositoryImpl : OrderRepository {
         if (updatedRows > 0) getOrderByIdInternal(orderId) else null
     }
 
+    override suspend fun updateOrderStatus(orderId: Long, status: String): Order? = DatabaseFactory.dbQuery {
+        val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
+            it[OrdersTable.status] = status
+        }
+
+        if (updatedRows > 0) getOrderByIdInternal(orderId) else null
+    }
+
+    override suspend fun openRefund(
+        orderId: Long,
+        userId: Long,
+        userName: String,
+        userRole: String,
+        message: String?,
+        screenshots: List<String>
+    ): Order? = DatabaseFactory.dbQuery {
+        val order = getOrderByIdInternal(orderId) ?: return@dbQuery null
+
+        OrdersTable.update({ OrdersTable.id eq orderId }) {
+            it[status] = "Refund Requested"
+        }
+
+        val initialMsg = if (!message.isNullOrBlank()) message else "Refund request opened for order ${order.orderNumber.ifEmpty { order.id.toString() }}"
+        addRefundMessageInternal(orderId, userId, userName, userRole, initialMsg, screenshots)
+
+        getOrderByIdInternal(orderId)
+    }
+
+    override suspend fun addRefundMessage(
+        orderId: Long,
+        senderId: Long,
+        senderName: String,
+        senderRole: String,
+        message: String,
+        screenshots: List<String>
+    ): RefundMessage? = DatabaseFactory.dbQuery {
+        addRefundMessageInternal(orderId, senderId, senderName, senderRole, message, screenshots)
+    }
+
+    override suspend fun getRefundMessages(orderId: Long): List<RefundMessage> = DatabaseFactory.dbQuery {
+        RefundMessagesTable.selectAll()
+            .where { RefundMessagesTable.orderId eq orderId }
+            .orderBy(RefundMessagesTable.id to SortOrder.ASC)
+            .map { rowToRefundMessage(it) }
+    }
+
+    private fun addRefundMessageInternal(
+        orderId: Long,
+        senderId: Long,
+        senderName: String,
+        senderRole: String,
+        message: String,
+        screenshots: List<String>
+    ): RefundMessage {
+        val now = Instant.now().toString()
+        val jsonScreenshots = Json.encodeToString(screenshots)
+
+        val generatedId = RefundMessagesTable.insert {
+            it[RefundMessagesTable.orderId] = orderId
+            it[RefundMessagesTable.senderId] = senderId
+            it[RefundMessagesTable.senderName] = senderName
+            it[RefundMessagesTable.senderRole] = senderRole
+            it[RefundMessagesTable.message] = message
+            it[RefundMessagesTable.screenshots] = jsonScreenshots
+            it[RefundMessagesTable.createdAt] = now
+        } get RefundMessagesTable.id
+
+        return RefundMessage(
+            id = generatedId,
+            orderId = orderId,
+            senderId = senderId,
+            senderName = senderName,
+            senderRole = senderRole,
+            message = message,
+            screenshots = screenshots,
+            createdAt = now
+        )
+    }
+
     private fun getOrderByIdInternal(orderId: Long): Order? {
         return OrdersTable.selectAll()
             .where { OrdersTable.id eq orderId }
@@ -96,27 +200,65 @@ class OrderRepositoryImpl : OrderRepository {
             .map { it[UsersTable.name] }
             .singleOrNull()
 
-        val productTitle = ProductsTable.selectAll()
+        val productTitleFromDb = ProductsTable.selectAll()
             .where { ProductsTable.id eq orderProductId }
             .map { it[ProductsTable.title] }
             .singleOrNull()
 
+        val storedProductName = row[OrdersTable.productName]
+        val effectiveProductName = if (storedProductName.isNotBlank()) storedProductName else (productTitleFromDb ?: "")
+
+        val storedProductImage = row[OrdersTable.productImage]
+        val storedPaymentScreenshot = row[OrdersTable.paymentScreenshot]
+        val storedPaymentImageUrl = row[OrdersTable.paymentImageUrl]
+        val effectivePaymentScreenshot = if (storedPaymentScreenshot.isNotBlank()) storedPaymentScreenshot else storedPaymentImageUrl
+
+        val storedNote = row[OrdersTable.note]
+        val storedVariationNote = row[OrdersTable.variationNote]
+        val effectiveNote = storedNote ?: storedVariationNote
+
         return Order(
             id = row[OrdersTable.id],
+            orderNumber = row[OrdersTable.orderNumber],
             orderDate = row[OrdersTable.orderDate],
             userId = orderUserId,
             userName = userName,
             productId = orderProductId,
-            productTitle = productTitle,
+            productName = effectiveProductName,
+            productImage = storedProductImage,
+            productSourcePrice = row[OrdersTable.productSourcePrice].toDouble(),
+            productTitle = effectiveProductName,
             address = row[OrdersTable.address],
-            variationNote = row[OrdersTable.variationNote],
+            note = effectiveNote,
+            variationNote = effectiveNote,
             quantity = row[OrdersTable.quantity],
             listingPrice = row[OrdersTable.listingPrice].toDouble(),
-            paymentImageUrl = row[OrdersTable.paymentImageUrl],
+            paymentScreenshot = effectivePaymentScreenshot,
+            paymentImageUrl = effectivePaymentScreenshot,
             trackId = row[OrdersTable.trackId],
             company = row[OrdersTable.company],
             status = row[OrdersTable.status],
             createdAt = row[OrdersTable.createdAt]
+        )
+    }
+
+    private fun rowToRefundMessage(row: ResultRow): RefundMessage {
+        val rawScreenshots = row[RefundMessagesTable.screenshots]
+        val screenshotsList = try {
+            Json.decodeFromString<List<String>>(rawScreenshots)
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        return RefundMessage(
+            id = row[RefundMessagesTable.id],
+            orderId = row[RefundMessagesTable.orderId],
+            senderId = row[RefundMessagesTable.senderId],
+            senderName = row[RefundMessagesTable.senderName],
+            senderRole = row[RefundMessagesTable.senderRole],
+            message = row[RefundMessagesTable.message],
+            screenshots = screenshotsList,
+            createdAt = row[RefundMessagesTable.createdAt]
         )
     }
 }

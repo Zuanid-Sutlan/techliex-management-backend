@@ -3,6 +3,7 @@ package com.techliex.data.db
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.techliex.data.db.table.OrdersTable
 import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.RefundMessagesTable
 import com.techliex.data.db.table.UsersTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -54,7 +55,7 @@ object DatabaseFactory {
             currentDbType = "PostgreSQL"
 
             transaction {
-                SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable)
+                SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
                 seedAdminUser()
             }
             println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
@@ -74,7 +75,7 @@ object DatabaseFactory {
                 currentDbType = "H2 File-based Fallback"
 
                 transaction {
-                    SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable)
+                    SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
                     seedAdminUser()
                 }
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")

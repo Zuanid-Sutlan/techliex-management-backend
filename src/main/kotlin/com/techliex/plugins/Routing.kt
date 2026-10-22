@@ -45,6 +45,10 @@ fun Application.configureRouting() {
     val getOrderByIdUseCase = GetOrderByIdUseCase(orderRepository)
     val updateLogisticsUseCase = UpdateLogisticsUseCase(orderRepository)
     val completeOrderUseCase = CompleteOrderUseCase(orderRepository)
+    val updateOrderStatusUseCase = UpdateOrderStatusUseCase(orderRepository)
+    val openRefundUseCase = OpenRefundUseCase(orderRepository)
+    val sendRefundMessageUseCase = SendRefundMessageUseCase(orderRepository)
+    val getRefundMessagesUseCase = GetRefundMessagesUseCase(orderRepository)
 
     val getDashboardStatsUseCase = GetDashboardStatsUseCase(dashboardRepository)
     val getAppVersionUseCase = GetAppVersionUseCase()
@@ -76,7 +80,17 @@ fun Application.configureRouting() {
             updateProductSharesUseCase,
             deleteProductUseCase
         )
-        orderRoutes(createOrderUseCase, getOrdersUseCase, getOrderByIdUseCase, updateLogisticsUseCase, completeOrderUseCase)
+        orderRoutes(
+            createOrderUseCase,
+            getOrdersUseCase,
+            getOrderByIdUseCase,
+            updateLogisticsUseCase,
+            completeOrderUseCase,
+            updateOrderStatusUseCase,
+            openRefundUseCase,
+            sendRefundMessageUseCase,
+            getRefundMessagesUseCase
+        )
         dashboardRoutes(getDashboardStatsUseCase)
     }
 }

@@ -1,22 +1,31 @@
 package com.techliex.domain.usecase.order
 
 import com.techliex.domain.model.Order
+import com.techliex.domain.model.RefundMessage
 import com.techliex.domain.repository.OrderRepository
 
 class CreateOrderUseCase(private val orderRepository: OrderRepository) {
     suspend operator fun invoke(
         userId: Long,
-        orderDate: String,
+        orderNumber: String?,
+        orderDate: String?,
         productId: Long,
         address: String,
-        variationNote: String?,
+        note: String?,
         quantity: Int,
-        listingPrice: Double,
-        paymentImageUrl: String
+        listingPrice: Double?,
+        paymentScreenshot: String?
     ): Order {
         return orderRepository.createOrder(
-            userId, orderDate, productId, address,
-            variationNote, quantity, listingPrice, paymentImageUrl
+            userId = userId,
+            orderNumber = orderNumber,
+            orderDate = orderDate,
+            productId = productId,
+            address = address,
+            note = note,
+            quantity = quantity,
+            listingPrice = listingPrice,
+            paymentScreenshot = paymentScreenshot
         )
     }
 }
@@ -42,5 +51,43 @@ class UpdateLogisticsUseCase(private val orderRepository: OrderRepository) {
 class CompleteOrderUseCase(private val orderRepository: OrderRepository) {
     suspend operator fun invoke(orderId: Long): Order? {
         return orderRepository.completeOrder(orderId)
+    }
+}
+
+class UpdateOrderStatusUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(orderId: Long, status: String): Order? {
+        return orderRepository.updateOrderStatus(orderId, status)
+    }
+}
+
+class OpenRefundUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(
+        orderId: Long,
+        userId: Long,
+        userName: String,
+        userRole: String,
+        message: String?,
+        screenshots: List<String>
+    ): Order? {
+        return orderRepository.openRefund(orderId, userId, userName, userRole, message, screenshots)
+    }
+}
+
+class SendRefundMessageUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(
+        orderId: Long,
+        senderId: Long,
+        senderName: String,
+        senderRole: String,
+        message: String,
+        screenshots: List<String>
+    ): RefundMessage? {
+        return orderRepository.addRefundMessage(orderId, senderId, senderName, senderRole, message, screenshots)
+    }
+}
+
+class GetRefundMessagesUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(orderId: Long): List<RefundMessage> {
+        return orderRepository.getRefundMessages(orderId)
     }
 }
