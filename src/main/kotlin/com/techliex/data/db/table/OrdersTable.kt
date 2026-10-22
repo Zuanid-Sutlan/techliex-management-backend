@@ -6,7 +6,7 @@ object OrdersTable : Table("orders") {
     val id = long("id").autoIncrement()
     val orderDate = varchar("order_date", 20)
     val userId = reference("user_id", UsersTable.id)
-    val productId = reference("product_id", ProductsTable.id)
+    val productId = long("product_id")
     val address = text("address")
     val variationNote = text("variation_note").nullable()
     val quantity = integer("quantity")

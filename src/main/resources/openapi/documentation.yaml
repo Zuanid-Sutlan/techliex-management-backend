@@ -191,6 +191,67 @@ components:
           type: number
           format: double
           example: 59.99
+        sharedUserIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          example: [2, 3]
+        shareWithUsernames:
+          type: array
+          items:
+            type: string
+          example: ["member_user1", "member_user2"]
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Wireless Mechanical Keyboard
+        description:
+          type: string
+          nullable: true
+          example: RGB backlit keyboard with blue switches
+        productImageUrl:
+          type: string
+          description: Base64 image string or Data URL
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+        sourceLink:
+          type: string
+          example: https://supplier.com/item/123
+        sourcePrice:
+          type: number
+          format: double
+          example: 25.50
+        referenceLink:
+          type: string
+          example: https://amazon.com/item/123
+        referencePrice:
+          type: number
+          format: double
+          example: 59.99
+        sharedUserIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          example: [2, 3]
+        shareWithUsernames:
+          type: array
+          items:
+            type: string
+          example: ["member_user1", "member_user2"]
+
+    UpdateProductSharesRequest:
+      type: object
+      properties:
+        sharedUserIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          example: [2, 3]
         shareWithUsernames:
           type: array
           items:
@@ -259,6 +320,12 @@ components:
           type: string
           nullable: true
           example: In Stock
+        sharedUserIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          example: [2, 3]
         sharedUsernames:
           type: array
           items:
@@ -839,6 +906,45 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/ProductDto'
+        '403':
+          description: Access denied (Product not shared with you)
+        '404':
+          description: Product not found
+
+    patch:
+      tags:
+        - Products
+      summary: Update Product Details (Admin or Product Creator)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
+        '403':
+          description: Only Admin or product creator can update product
         '404':
           description: Product not found
 
@@ -871,6 +977,44 @@ paths:
                     example: Product deleted successfully
         '403':
           description: Admin role required
+        '404':
+          description: Product not found
+
+  /api/v1/products/{id}/shares:
+    patch:
+      tags:
+        - Products
+      summary: Update Product Shares / Visibility (Admin or Product Creator)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductSharesRequest'
+      responses:
+        '200':
+          description: Product shares updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
+        '403':
+          description: Only Admin or product creator can update shares
         '404':
           description: Product not found
 

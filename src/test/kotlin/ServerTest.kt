@@ -231,4 +231,170 @@ class ServerTest {
         assertNotNull(statsData)
         assertTrue(statsData.productCount >= 1)
     }
+
+    @Test
+    fun `test product permissions and visibility for admin and members`() = testApplication {
+        application {
+            DatabaseFactory.init(environment.config)
+            JwtConfig.init(environment.config)
+
+            configureSerialization()
+            configureSecurity()
+            configureStatusPages()
+            configureCORS()
+            configureRouting()
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                })
+            }
+        }
+
+        // Login as Admin
+        val adminLoginResponse = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = "umair", password = "umair123"))
+        }
+        val adminToken = adminLoginResponse.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val ts = System.currentTimeMillis()
+        val user1Name = "prod_user1_$ts"
+        val user2Name = "prod_user2_$ts"
+        val user3Name = "prod_user3_$ts"
+
+        // Create Member 1, Member 2, Member 3
+        val u1Res = client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = user1Name, password = "pass123", name = "User 1", role = "Member"))
+        }
+        val u1Id = u1Res.body<ApiResponse<UserDto>>().data!!.id
+        assertTrue(u1Id > 0)
+
+        val u2Res = client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = user2Name, password = "pass123", name = "User 2", role = "Member"))
+        }
+        val u2Id = u2Res.body<ApiResponse<UserDto>>().data!!.id
+
+        val u3Res = client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = user3Name, password = "pass123", name = "User 3", role = "Member"))
+        }
+        val u3Id = u3Res.body<ApiResponse<UserDto>>().data!!.id
+
+        // Login as User 1 and User 3
+        val u1Login = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = user1Name, password = "pass123"))
+        }
+        val user1Token = u1Login.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val u3Login = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = user3Name, password = "pass123"))
+        }
+        val user3Token = u3Login.body<ApiResponse<LoginResponse>>().data!!.token
+
+        // User 1 creates product shared with user 2 using sharedUserIds
+        val createProductRes = client.post("/api/v1/products") {
+            header(HttpHeaders.Authorization, "Bearer $user1Token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateProductRequest(
+                title = "Smart Watch",
+                description = "Fitness Tracker",
+                productImageUrl = "https://example.com/watch.jpg",
+                sourceLink = "https://supplier.com/watch",
+                sourcePrice = 30.0,
+                referenceLink = "https://amazon.com/watch",
+                referencePrice = 80.0,
+                sharedUserIds = listOf(u2Id)
+            ))
+        }
+        assertEquals(HttpStatusCode.Created, createProductRes.status)
+        val product = createProductRes.body<ApiResponse<ProductDto>>().data!!
+        val productId = product.id
+
+        assertTrue(u2Id in product.sharedUserIds)
+
+        // User 3 attempts to view product -> should be 403 Forbidden
+        val u3ViewRes = client.get("/api/v1/products/$productId") {
+            header(HttpHeaders.Authorization, "Bearer $user3Token")
+        }
+        assertEquals(HttpStatusCode.Forbidden, u3ViewRes.status)
+
+        // User 3 attempts to update warehouse info -> should be 403 Forbidden
+        val u3WhRes = client.patch("/api/v1/products/$productId/warehouse") {
+            header(HttpHeaders.Authorization, "Bearer $user3Token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateWarehouseRequest(warehousePrice = 40.0, warehouseNote = "Unpermitted"))
+        }
+        assertEquals(HttpStatusCode.Forbidden, u3WhRes.status)
+
+        // User 3 attempts to delete product -> should be 403 Forbidden
+        val u3DelRes = client.delete("/api/v1/products/$productId") {
+            header(HttpHeaders.Authorization, "Bearer $user3Token")
+        }
+        assertEquals(HttpStatusCode.Forbidden, u3DelRes.status)
+
+        // Admin updates product shares so User 3 is included in sharedUserIds
+        val adminUpdateSharesRes = client.patch("/api/v1/products/$productId/shares") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateProductSharesRequest(sharedUserIds = listOf(u2Id, u3Id)))
+        }
+        assertEquals(HttpStatusCode.OK, adminUpdateSharesRes.status)
+        val updatedProduct = adminUpdateSharesRes.body<ApiResponse<ProductDto>>().data!!
+        assertTrue(u3Id in updatedProduct.sharedUserIds)
+
+        // Now User 3 attempts to view product -> should be 200 OK
+        val u3ViewSuccessRes = client.get("/api/v1/products/$productId") {
+            header(HttpHeaders.Authorization, "Bearer $user3Token")
+        }
+        assertEquals(HttpStatusCode.OK, u3ViewSuccessRes.status)
+
+        // Admin updates warehouse price & note
+        val adminWhRes = client.patch("/api/v1/products/$productId/warehouse") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateWarehouseRequest(warehousePrice = 35.0, warehouseNote = "Warehouse Checked"))
+        }
+        assertEquals(HttpStatusCode.OK, adminWhRes.status)
+        val whProduct = adminWhRes.body<ApiResponse<ProductDto>>().data!!
+        assertEquals(35.0, whProduct.warehousePrice)
+        assertEquals("Warehouse Checked", whProduct.warehouseNote)
+
+        // Create an order linked to this product to test deletion with existing order references
+        val createOrderRes = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $user1Token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderDate = "2025-01-01",
+                productId = productId,
+                address = "456 Test Street",
+                quantity = 1,
+                listingPrice = 80.0,
+                paymentImageUrl = "data:image/png;base64,iVBOR..."
+            ))
+        }
+        assertEquals(HttpStatusCode.Created, createOrderRes.status)
+
+        // Admin deletes product
+        val adminDelRes = client.delete("/api/v1/products/$productId") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, adminDelRes.status)
+
+        // Check product is gone
+        val checkGoneRes = client.get("/api/v1/products/$productId") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, checkGoneRes.status)
+    }
 }

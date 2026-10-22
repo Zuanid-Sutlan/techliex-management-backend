@@ -64,6 +64,26 @@ data class CreateProductRequest(
     val sourcePrice: Double,
     val referenceLink: String,
     val referencePrice: Double,
+    val sharedUserIds: List<Long> = emptyList(),
+    val shareWithUsernames: List<String> = emptyList()
+)
+
+@Serializable
+data class UpdateProductRequest(
+    val title: String? = null,
+    val description: String? = null,
+    val productImageUrl: String? = null,
+    val sourceLink: String? = null,
+    val sourcePrice: Double? = null,
+    val referenceLink: String? = null,
+    val referencePrice: Double? = null,
+    val sharedUserIds: List<Long>? = null,
+    val shareWithUsernames: List<String>? = null
+)
+
+@Serializable
+data class UpdateProductSharesRequest(
+    val sharedUserIds: List<Long> = emptyList(),
     val shareWithUsernames: List<String> = emptyList()
 )
 
@@ -87,6 +107,7 @@ data class ProductDto(
     val referencePrice: Double,
     val warehousePrice: Double,
     val warehouseNote: String?,
+    val sharedUserIds: List<Long> = emptyList(),
     val sharedUsernames: List<String> = emptyList(),
     val createdAt: String
 )
@@ -104,6 +125,7 @@ fun Product.toDto(): ProductDto = ProductDto(
     referencePrice = referencePrice,
     warehousePrice = warehousePrice,
     warehouseNote = warehouseNote,
+    sharedUserIds = sharedUserIds,
     sharedUsernames = sharedUsernames,
     createdAt = createdAt
 )

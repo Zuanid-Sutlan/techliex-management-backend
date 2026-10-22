@@ -2,7 +2,6 @@ package com.techliex.data.repository
 
 import com.techliex.data.db.*
 import com.techliex.data.db.table.OrdersTable
-import com.techliex.data.db.table.ProductSharesTable
 import com.techliex.data.db.table.ProductsTable
 import com.techliex.domain.model.DashboardStats
 import com.techliex.domain.repository.DashboardRepository
@@ -28,15 +27,14 @@ class DashboardRepositoryImpl : DashboardRepository {
                 totalEarnings = totalEarnings
             )
         } else {
-            val ownProductCount = ProductsTable.selectAll()
-                .where { ProductsTable.userId eq userId }
-                .count()
-
-            val sharedProductCount = ProductSharesTable.selectAll()
-                .where { ProductSharesTable.sharedUserId eq userId }
-                .count()
-
-            val totalProducts = ownProductCount + sharedProductCount
+            val totalProducts = ProductsTable.selectAll()
+                .map { row ->
+                    val creatorId = row[ProductsTable.userId]
+                    val sharedUserIds = row[ProductsTable.sharedUserIds].split(",").mapNotNull { it.trim().toLongOrNull() }
+                    creatorId == userId || userId in sharedUserIds
+                }
+                .count { it }
+                .toLong()
 
             val activeOrders = OrdersTable.selectAll()
                 .where { (OrdersTable.userId eq userId) and (OrdersTable.status neq "Completed") }
