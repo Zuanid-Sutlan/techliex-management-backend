@@ -31,6 +31,7 @@ fun Application.configureRouting() {
     val deactivateUserUseCase = DeactivateUserUseCase(userRepository)
     val activateUserUseCase = ActivateUserUseCase(userRepository)
     val resetUserPasswordUseCase = ResetUserPasswordUseCase(userRepository)
+    val deleteUserPermanentlyUseCase = DeleteUserPermanentlyUseCase(userRepository)
 
     val createProductUseCase = CreateProductUseCase(productRepository)
     val getProductsUseCase = GetProductsUseCase(productRepository)
@@ -49,6 +50,8 @@ fun Application.configureRouting() {
     val openRefundUseCase = OpenRefundUseCase(orderRepository)
     val sendRefundMessageUseCase = SendRefundMessageUseCase(orderRepository)
     val getRefundMessagesUseCase = GetRefundMessagesUseCase(orderRepository)
+    val deleteOrderUseCase = DeleteOrderUseCase(orderRepository)
+    val deleteOrderRefundMessagesUseCase = DeleteOrderRefundMessagesUseCase(orderRepository)
 
     val getDashboardStatsUseCase = GetDashboardStatsUseCase(dashboardRepository)
     val getAppVersionUseCase = GetAppVersionUseCase()
@@ -69,7 +72,8 @@ fun Application.configureRouting() {
             deactivateUserUseCase,
             activateUserUseCase,
             resetUserPasswordUseCase,
-            changePasswordUseCase
+            changePasswordUseCase,
+            deleteUserPermanentlyUseCase
         )
         productRoutes(
             createProductUseCase,
@@ -89,7 +93,9 @@ fun Application.configureRouting() {
             updateOrderStatusUseCase,
             openRefundUseCase,
             sendRefundMessageUseCase,
-            getRefundMessagesUseCase
+            getRefundMessagesUseCase,
+            deleteOrderUseCase,
+            deleteOrderRefundMessagesUseCase
         )
         dashboardRoutes(getDashboardStatsUseCase)
     }

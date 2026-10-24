@@ -91,3 +91,15 @@ class GetRefundMessagesUseCase(private val orderRepository: OrderRepository) {
         return orderRepository.getRefundMessages(orderId)
     }
 }
+
+class DeleteOrderUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(orderId: Long): Boolean {
+        return orderRepository.deleteOrder(orderId)
+    }
+}
+
+class DeleteOrderRefundMessagesUseCase(private val orderRepository: OrderRepository) {
+    suspend operator fun invoke(orderId: Long): Boolean {
+        return orderRepository.deleteOrderRefundMessages(orderId)
+    }
+}

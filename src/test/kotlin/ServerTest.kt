@@ -33,6 +33,7 @@ class ServerTest {
             DatabaseFactory.init(environment.config)
             JwtConfig.init(environment.config)
 
+            configureMonitoring()
             configureSerialization()
             configureSecurity()
             configureStatusPages()
@@ -246,6 +247,7 @@ class ServerTest {
             DatabaseFactory.init(environment.config)
             JwtConfig.init(environment.config)
 
+            configureMonitoring()
             configureSerialization()
             configureSecurity()
             configureStatusPages()
@@ -413,6 +415,7 @@ class ServerTest {
             DatabaseFactory.init(environment.config)
             JwtConfig.init(environment.config)
 
+            configureMonitoring()
             configureSerialization()
             configureSecurity()
             configureStatusPages()
@@ -571,5 +574,148 @@ class ServerTest {
             header(HttpHeaders.Authorization, "Bearer $outsiderToken")
         }
         assertEquals(HttpStatusCode.Forbidden, outsiderAccessRes.status)
+    }
+
+    @Test
+    fun `test permanent deletion of users orders and chats`() = testApplication {
+        application {
+            DatabaseFactory.init(environment.config)
+            JwtConfig.init(environment.config)
+
+            configureMonitoring()
+            configureSerialization()
+            configureSecurity()
+            configureStatusPages()
+            configureCORS()
+            configureRouting()
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                })
+            }
+        }
+
+        // Login Admin
+        val adminLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = "umair", password = "umair123"))
+        }
+        val adminToken = adminLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val ts = System.currentTimeMillis()
+        val tempUser = "del_user_$ts"
+
+        // Create Temp User
+        client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = tempUser, password = "pass123", name = "Temp User", role = "Member"))
+        }
+
+        val tempLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = tempUser, password = "pass123"))
+        }
+        val tempToken = tempLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        // Create Product for temp user
+        val prodRes = client.post("/api/v1/products") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateProductRequest(
+                title = "Temp Speaker",
+                description = "Portable",
+                productImageUrl = "https://example.com/speaker.jpg",
+                sourceLink = "https://supplier.com/sp",
+                sourcePrice = 15.0,
+                referenceLink = "https://store.com/sp",
+                referencePrice = 40.0
+            ))
+        }
+        val prodId = prodRes.body<ApiResponse<ProductDto>>().data!!.id
+
+        // Temp User creates Order 1 & Order 2
+        val o1Res = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderNumber = "ORD-DEL-1",
+                productId = prodId,
+                address = "123 Del St",
+                quantity = 1,
+                paymentScreenshot = "data:image/png;base64,proof1"
+            ))
+        }
+        val order1Id = o1Res.body<ApiResponse<OrderDto>>().data!!.id
+
+        val o2Res = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderNumber = "ORD-DEL-2",
+                productId = prodId,
+                address = "123 Del St",
+                quantity = 2,
+                paymentScreenshot = "data:image/png;base64,proof2"
+            ))
+        }
+        val order2Id = o2Res.body<ApiResponse<OrderDto>>().data!!.id
+
+        // Send chats on Order 1
+        client.post("/api/v1/orders/$order1Id/refund") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(OpenRefundRequest(message = "Defective speaker", screenshots = listOf("data:image/png;base64,defect")))
+        }
+
+        client.post("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(SendRefundMessageRequest(message = "Please send photo", screenshots = emptyList()))
+        }
+
+        // Verify chats exist on Order 1
+        val msgsBefore = client.get("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(2, msgsBefore.body<ApiResponse<List<RefundMessageDto>>>().data!!.size)
+
+        // 1. Test deleting only the chats against Order 1
+        val delChatsRes = client.delete("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, delChatsRes.status)
+
+        val msgsAfterDelChats = client.get("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(0, msgsAfterDelChats.body<ApiResponse<List<RefundMessageDto>>>().data!!.size)
+
+        // 2. Test deleting Order 2 permanently
+        val delOrder2Res = client.delete("/api/v1/orders/$order2Id") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+        }
+        assertEquals(HttpStatusCode.OK, delOrder2Res.status)
+
+        val checkOrder2 = client.get("/api/v1/orders/$order2Id") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, checkOrder2.status)
+
+        // 3. Test deleting Temp User permanently from database
+        val delUserPermRes = client.delete("/api/v1/users/$tempUser/permanent") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, delUserPermRes.status)
+
+        // Verify Temp User is gone from database
+        val checkUserGone = client.get("/api/v1/users/$tempUser") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, checkUserGone.status)
     }
 }

@@ -18,7 +18,9 @@ fun Route.orderRoutes(
     updateOrderStatusUseCase: UpdateOrderStatusUseCase,
     openRefundUseCase: OpenRefundUseCase,
     sendRefundMessageUseCase: SendRefundMessageUseCase,
-    getRefundMessagesUseCase: GetRefundMessagesUseCase
+    getRefundMessagesUseCase: GetRefundMessagesUseCase,
+    deleteOrderUseCase: DeleteOrderUseCase,
+    deleteOrderRefundMessagesUseCase: DeleteOrderRefundMessagesUseCase
 ) {
     route("/api/v1/orders") {
         authenticate("auth-jwt") {
@@ -131,6 +133,27 @@ fun Route.orderRoutes(
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Order status updated", updatedOrder.toDto()))
             }
 
+            // Admin or order owner: delete order permanently (and its chats)
+            delete("/{id}") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@delete call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && existingOrder.userId != principal.id) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val deleted = deleteOrderUseCase(orderId)
+                if (deleted) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "Order and associated chats deleted permanently"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+                }
+            }
+
             // Open Refund on Order
             post("/{id}/refund") {
                 val principal = call.getUserPrincipal()
@@ -208,6 +231,27 @@ fun Route.orderRoutes(
 
                 val messages = getRefundMessagesUseCase(orderId).map { it.toDto() }
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Refund messages retrieved", messages))
+            }
+
+            // Admin or order owner: delete all refund chat messages against the order
+            delete("/{id}/refund/messages") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@delete call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && existingOrder.userId != principal.id) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val deleted = deleteOrderRefundMessagesUseCase(orderId)
+                if (deleted) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "All refund chat messages deleted successfully"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+                }
             }
         }
     }

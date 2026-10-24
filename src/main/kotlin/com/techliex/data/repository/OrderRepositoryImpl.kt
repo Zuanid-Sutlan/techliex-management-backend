@@ -10,6 +10,7 @@ import com.techliex.domain.model.RefundMessage
 import com.techliex.domain.repository.OrderRepository
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -149,6 +150,15 @@ class OrderRepositoryImpl : OrderRepository {
             .where { RefundMessagesTable.orderId eq orderId }
             .orderBy(RefundMessagesTable.id to SortOrder.ASC)
             .map { rowToRefundMessage(it) }
+    }
+
+    override suspend fun deleteOrder(orderId: Long): Boolean = DatabaseFactory.dbQuery {
+        RefundMessagesTable.deleteWhere { RefundMessagesTable.orderId eq orderId }
+        OrdersTable.deleteWhere { OrdersTable.id eq orderId } > 0
+    }
+
+    override suspend fun deleteOrderRefundMessages(orderId: Long): Boolean = DatabaseFactory.dbQuery {
+        RefundMessagesTable.deleteWhere { RefundMessagesTable.orderId eq orderId } >= 0
     }
 
     private fun addRefundMessageInternal(

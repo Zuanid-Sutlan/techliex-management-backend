@@ -855,6 +855,39 @@ paths:
         '404':
           description: User not found
 
+  /api/v1/users/{username}/permanent:
+    delete:
+      tags:
+        - User Management
+      summary: Permanently Delete User (Admin Only)
+      description: Permanently removes the user record and associated products, orders, and chats from the database.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User permanently deleted from database
+        '403':
+          description: Admin access required
+        '404':
+          description: User not found
+
   /api/v1/users/{username}/activate:
     patch:
       tags:
@@ -1236,6 +1269,39 @@ paths:
         '404':
           description: Order not found
 
+    delete:
+      tags:
+        - Orders
+      summary: Permanently Delete Order and Associated Refund Chats
+      description: Permanently deletes the order record and all refund chat messages associated with it.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order and associated chats deleted permanently
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Order and associated chats deleted permanently
+        '403':
+          description: Access denied
+        '404':
+          description: Order not found
+
   /api/v1/orders/{id}/logistics:
     patch:
       tags:
@@ -1446,6 +1512,37 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/RefundMessageDto'
+        '404':
+          description: Order not found
+
+    delete:
+      tags:
+        - Orders
+      summary: Delete All Refund Chat Messages for Order
+      description: Deletes all conversational refund chat messages and screenshots associated with order {id}.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: All refund chat messages deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: All refund chat messages deleted successfully
         '404':
           description: Order not found
 

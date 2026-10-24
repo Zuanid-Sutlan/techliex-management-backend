@@ -42,6 +42,7 @@ fun Application.module() {
     DatabaseFactory.init(environment.config)
     JwtConfig.init(environment.config)
 
+    configureMonitoring()
     configureSerialization()
     configureSecurity()
     configureStatusPages()

@@ -1,10 +1,15 @@
 package com.techliex.data.repository
 
 import com.techliex.data.db.DatabaseFactory
+import com.techliex.data.db.table.OrdersTable
+import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.RefundMessagesTable
 import com.techliex.data.db.table.UsersTable
 import com.techliex.domain.model.User
 import com.techliex.domain.repository.UserRepository
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import java.time.Instant
 
 class UserRepositoryImpl : UserRepository {
@@ -82,6 +87,28 @@ class UserRepositoryImpl : UserRepository {
             it[passwordHash] = newPasswordHash
         }
         updatedRows > 0
+    }
+
+    override suspend fun deleteUserPermanently(username: String): Boolean = DatabaseFactory.dbQuery {
+        val user = UsersTable.selectAll()
+            .where { UsersTable.username eq username }
+            .map { rowToUser(it) }
+            .singleOrNull()
+            ?: return@dbQuery false
+
+        val userOrderIds = OrdersTable.selectAll()
+            .where { OrdersTable.userId eq user.id }
+            .map { it[OrdersTable.id] }
+
+        if (userOrderIds.isNotEmpty()) {
+            RefundMessagesTable.deleteWhere { RefundMessagesTable.orderId inList userOrderIds }
+            OrdersTable.deleteWhere { OrdersTable.userId eq user.id }
+        }
+
+        RefundMessagesTable.deleteWhere { RefundMessagesTable.senderId eq user.id }
+        ProductsTable.deleteWhere { ProductsTable.userId eq user.id }
+        
+        UsersTable.deleteWhere { UsersTable.id eq user.id } > 0
     }
 
     private fun rowToUser(row: ResultRow): User {

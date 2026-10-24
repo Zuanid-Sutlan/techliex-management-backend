@@ -38,4 +38,6 @@ interface OrderRepository {
         screenshots: List<String>
     ): RefundMessage?
     suspend fun getRefundMessages(orderId: Long): List<RefundMessage>
+    suspend fun deleteOrder(orderId: Long): Boolean
+    suspend fun deleteOrderRefundMessages(orderId: Long): Boolean
 }
