@@ -1,7 +1,6 @@
 package com.techliex.data.repository
 
 import com.techliex.data.db.*
-import com.techliex.data.db.table.ProductSharesTable
 import com.techliex.data.db.table.ProductsTable
 import com.techliex.data.db.table.UsersTable
 import com.techliex.domain.model.Product
@@ -22,9 +21,12 @@ class ProductRepositoryImpl : ProductRepository {
         sourcePrice: Double,
         referenceLink: String,
         referencePrice: Double,
+        sharedUserIds: List<Long>,
         shareWithUsernames: List<String>
     ): Product = DatabaseFactory.dbQuery {
         val now = Instant.now().toString()
+        val (finalUserIds, finalUsernames) = resolveShares(sharedUserIds, shareWithUsernames)
+
         val generatedId = ProductsTable.insert {
             it[userId] = creatorId
             it[this.title] = title
@@ -36,72 +38,61 @@ class ProductRepositoryImpl : ProductRepository {
             it[this.referencePrice] = BigDecimal.valueOf(referencePrice)
             it[warehousePrice] = BigDecimal.ZERO
             it[warehouseNote] = null
+            it[ProductsTable.sharedUserIds] = finalUserIds.joinToString(",")
+            it[ProductsTable.sharedUsernames] = finalUsernames.joinToString(",")
             it[createdAt] = now
         } get ProductsTable.id
 
-        if (shareWithUsernames.isNotEmpty()) {
-            val sharedUserIds = UsersTable.selectAll()
-                .where { UsersTable.username inList shareWithUsernames }
-                .map { it[UsersTable.id] }
-
-            for (targetUserId in sharedUserIds) {
-                ProductSharesTable.insert {
-                    it[productId] = generatedId
-                    it[sharedUserId] = targetUserId
-                }
-            }
-        }
-
-        val creatorName = UsersTable.selectAll()
-            .where { UsersTable.id eq creatorId }
-            .map { it[UsersTable.name] }
-            .singleOrNull()
-
-        Product(
-            id = generatedId,
-            userId = creatorId,
-            creatorName = creatorName,
-            title = title,
-            description = description,
-            productImageUrl = productImageUrl,
-            sourceLink = sourceLink,
-            sourcePrice = sourcePrice,
-            referenceLink = referenceLink,
-            referencePrice = referencePrice,
-            warehousePrice = 0.0,
-            warehouseNote = null,
-            sharedUsernames = shareWithUsernames,
-            createdAt = now
-        )
+        getProductByIdInternal(generatedId)!!
     }
 
     override suspend fun getProductsForUser(userId: Long, userRole: String): List<Product> = DatabaseFactory.dbQuery {
-        val productIds = if (userRole == "Admin" || userRole == "Warehouse") {
-            ProductsTable.selectAll().map { it[ProductsTable.id] }
+        val allProducts = ProductsTable.selectAll().map { rowToProduct(it) }
+
+        if (userRole == "Admin" || userRole == "Warehouse") {
+            allProducts
         } else {
-            val ownProductIds = ProductsTable.selectAll()
-                .where { ProductsTable.userId eq userId }
-                .map { it[ProductsTable.id] }
-
-            val sharedProductIds = ProductSharesTable.selectAll()
-                .where { ProductSharesTable.sharedUserId eq userId }
-                .map { it[ProductSharesTable.productId] }
-
-            (ownProductIds + sharedProductIds).distinct()
+            allProducts.filter { product ->
+                product.userId == userId || userId in product.sharedUserIds
+            }
         }
-
-        if (productIds.isEmpty()) return@dbQuery emptyList()
-
-        ProductsTable.selectAll()
-            .where { ProductsTable.id inList productIds }
-            .map { rowToProduct(it) }
     }
 
     override suspend fun getProductById(productId: Long): Product? = DatabaseFactory.dbQuery {
-        ProductsTable.selectAll()
-            .where { ProductsTable.id eq productId }
-            .map { rowToProduct(it) }
-            .singleOrNull()
+        getProductByIdInternal(productId)
+    }
+
+    override suspend fun updateProduct(
+        productId: Long,
+        title: String?,
+        description: String?,
+        productImageUrl: String?,
+        sourceLink: String?,
+        sourcePrice: Double?,
+        referenceLink: String?,
+        referencePrice: Double?,
+        sharedUserIds: List<Long>?,
+        shareWithUsernames: List<String>?
+    ): Product? = DatabaseFactory.dbQuery {
+        getProductByIdInternal(productId) ?: return@dbQuery null
+
+        val (finalUserIds, finalUsernames) = if (sharedUserIds != null || shareWithUsernames != null) {
+            resolveShares(sharedUserIds ?: emptyList(), shareWithUsernames ?: emptyList())
+        } else Pair(null, null)
+
+        ProductsTable.update({ ProductsTable.id eq productId }) {
+            if (title != null) it[ProductsTable.title] = title
+            if (description != null) it[ProductsTable.description] = description
+            if (productImageUrl != null) it[ProductsTable.productImageUrl] = productImageUrl
+            if (sourceLink != null) it[ProductsTable.sourceLink] = sourceLink
+            if (sourcePrice != null) it[ProductsTable.sourcePrice] = BigDecimal.valueOf(sourcePrice)
+            if (referenceLink != null) it[ProductsTable.referenceLink] = referenceLink
+            if (referencePrice != null) it[ProductsTable.referencePrice] = BigDecimal.valueOf(referencePrice)
+            if (finalUserIds != null) it[ProductsTable.sharedUserIds] = finalUserIds.joinToString(",")
+            if (finalUsernames != null) it[ProductsTable.sharedUsernames] = finalUsernames.joinToString(",")
+        }
+
+        getProductByIdInternal(productId)
     }
 
     override suspend fun updateWarehouse(productId: Long, warehousePrice: Double, warehouseNote: String?): Product? = DatabaseFactory.dbQuery {
@@ -111,6 +102,22 @@ class ProductRepositoryImpl : ProductRepository {
         }
 
         if (updatedRows > 0) getProductByIdInternal(productId) else null
+    }
+
+    override suspend fun updateProductShares(
+        productId: Long,
+        sharedUserIds: List<Long>,
+        shareWithUsernames: List<String>
+    ): Product? = DatabaseFactory.dbQuery {
+        getProductByIdInternal(productId) ?: return@dbQuery null
+        val (finalUserIds, finalUsernames) = resolveShares(sharedUserIds, shareWithUsernames)
+
+        ProductsTable.update({ ProductsTable.id eq productId }) {
+            it[ProductsTable.sharedUserIds] = finalUserIds.joinToString(",")
+            it[ProductsTable.sharedUsernames] = finalUsernames.joinToString(",")
+        }
+
+        getProductByIdInternal(productId)
     }
 
     override suspend fun deleteProduct(productId: Long): Boolean = DatabaseFactory.dbQuery {
@@ -124,6 +131,30 @@ class ProductRepositoryImpl : ProductRepository {
             .singleOrNull()
     }
 
+    private fun resolveShares(
+        sharedUserIds: List<Long>,
+        shareWithUsernames: List<String>
+    ): Pair<List<Long>, List<String>> {
+        val userIdsFromUsernames = if (shareWithUsernames.isNotEmpty()) {
+            UsersTable.selectAll()
+                .where { UsersTable.username inList shareWithUsernames }
+                .map { it[UsersTable.id] }
+        } else emptyList()
+
+        val combinedUserIds = (sharedUserIds + userIdsFromUsernames).distinct()
+
+        val validUsers = if (combinedUserIds.isNotEmpty()) {
+            UsersTable.selectAll()
+                .where { UsersTable.id inList combinedUserIds }
+                .map { Pair(it[UsersTable.id], it[UsersTable.username]) }
+        } else emptyList()
+
+        val resolvedUserIds = validUsers.map { it.first }
+        val resolvedUsernames = validUsers.map { it.second }
+
+        return Pair(resolvedUserIds, resolvedUsernames)
+    }
+
     private fun rowToProduct(row: ResultRow): Product {
         val productId = row[ProductsTable.id]
         val creatorId = row[ProductsTable.userId]
@@ -133,10 +164,15 @@ class ProductRepositoryImpl : ProductRepository {
             .map { it[UsersTable.name] }
             .singleOrNull()
 
-        val sharedUsernames = (ProductSharesTable innerJoin UsersTable)
-            .selectAll()
-            .where { ProductSharesTable.productId eq productId }
-            .map { it[UsersTable.username] }
+        val sharedUserIdsRaw = row[ProductsTable.sharedUserIds]
+        val sharedUsernamesRaw = row[ProductsTable.sharedUsernames]
+
+        val sharedUserIds = sharedUserIdsRaw.split(",")
+            .mapNotNull { it.trim().toLongOrNull() }
+
+        val sharedUsernames = sharedUsernamesRaw.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
 
         return Product(
             id = productId,
@@ -151,6 +187,7 @@ class ProductRepositoryImpl : ProductRepository {
             referencePrice = row[ProductsTable.referencePrice].toDouble(),
             warehousePrice = row[ProductsTable.warehousePrice].toDouble(),
             warehouseNote = row[ProductsTable.warehouseNote],
+            sharedUserIds = sharedUserIds,
             sharedUsernames = sharedUsernames,
             createdAt = row[ProductsTable.createdAt]
         )

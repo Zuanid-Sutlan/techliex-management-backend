@@ -13,6 +13,7 @@ data class Product(
     val referencePrice: Double,
     val warehousePrice: Double,
     val warehouseNote: String?,
+    val sharedUserIds: List<Long> = emptyList(),
     val sharedUsernames: List<String> = emptyList(),
     val createdAt: String
 )

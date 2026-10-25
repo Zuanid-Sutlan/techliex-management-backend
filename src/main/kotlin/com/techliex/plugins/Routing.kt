@@ -35,7 +35,9 @@ fun Application.configureRouting() {
     val createProductUseCase = CreateProductUseCase(productRepository)
     val getProductsUseCase = GetProductsUseCase(productRepository)
     val getProductByIdUseCase = GetProductByIdUseCase(productRepository)
+    val updateProductUseCase = UpdateProductUseCase(productRepository)
     val updateWarehouseUseCase = UpdateWarehouseUseCase(productRepository)
+    val updateProductSharesUseCase = UpdateProductSharesUseCase(productRepository)
     val deleteProductUseCase = DeleteProductUseCase(productRepository)
 
     val createOrderUseCase = CreateOrderUseCase(orderRepository)
@@ -65,7 +67,15 @@ fun Application.configureRouting() {
             resetUserPasswordUseCase,
             changePasswordUseCase
         )
-        productRoutes(createProductUseCase, getProductsUseCase, getProductByIdUseCase, updateWarehouseUseCase, deleteProductUseCase)
+        productRoutes(
+            createProductUseCase,
+            getProductsUseCase,
+            getProductByIdUseCase,
+            updateProductUseCase,
+            updateWarehouseUseCase,
+            updateProductSharesUseCase,
+            deleteProductUseCase
+        )
         orderRoutes(createOrderUseCase, getOrdersUseCase, getOrderByIdUseCase, updateLogisticsUseCase, completeOrderUseCase)
         dashboardRoutes(getDashboardStatsUseCase)
     }

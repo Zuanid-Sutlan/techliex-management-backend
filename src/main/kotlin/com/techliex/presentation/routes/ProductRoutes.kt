@@ -13,7 +13,9 @@ fun Route.productRoutes(
     createProductUseCase: CreateProductUseCase,
     getProductsUseCase: GetProductsUseCase,
     getProductByIdUseCase: GetProductByIdUseCase,
+    updateProductUseCase: UpdateProductUseCase,
     updateWarehouseUseCase: UpdateWarehouseUseCase,
+    updateProductSharesUseCase: UpdateProductSharesUseCase,
     deleteProductUseCase: DeleteProductUseCase
 ) {
     route("/api/v1/products") {
@@ -37,27 +39,101 @@ fun Route.productRoutes(
                     sourcePrice = req.sourcePrice,
                     referenceLink = req.referenceLink,
                     referencePrice = req.referencePrice,
+                    sharedUserIds = req.sharedUserIds,
                     shareWithUsernames = req.shareWithUsernames
                 )
                 call.respond(HttpStatusCode.Created, ApiResponse(true, "Product hunt created successfully", product.toDto()))
             }
 
-            // Get products visible to current user
+            // Get products visible to current user (Admin sees all; Member sees owned or shared)
             get {
                 val principal = call.getUserPrincipal()
                 val products = getProductsUseCase(principal.id, principal.role).map { it.toDto() }
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Products retrieved", products))
             }
 
-            // Get single product details
+            // Get single product details (with visibility enforcement)
             get("/{id}") {
+                val principal = call.getUserPrincipal()
                 val productId = call.parameters["id"]?.toLongOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid product ID"))
 
                 val product = getProductByIdUseCase(productId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
 
+                // Enforce visibility for non-admin/non-warehouse users
+                if (principal.role != "Admin" && principal.role != "Warehouse") {
+                    val isOwner = product.userId == principal.id
+                    val isShared = principal.id in product.sharedUserIds || principal.username in product.sharedUsernames
+                    if (!isOwner && !isShared) {
+                        return@get call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied: Product not shared with you"))
+                    }
+                }
+
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Product details retrieved", product.toDto()))
+            }
+
+            // Update product details (Admin or Product Creator)
+            patch("/{id}") {
+                val principal = call.getUserPrincipal()
+                val productId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid product ID"))
+
+                val existingProduct = getProductByIdUseCase(productId)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                if (principal.role != "Admin" && existingProduct.userId != principal.id) {
+                    return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Only Admin or product creator can update product"))
+                }
+
+                val req = try {
+                    call.receive<UpdateProductRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val updatedProduct = updateProductUseCase(
+                    productId = productId,
+                    title = req.title,
+                    description = req.description,
+                    productImageUrl = req.productImageUrl,
+                    sourceLink = req.sourceLink,
+                    sourcePrice = req.sourcePrice,
+                    referenceLink = req.referenceLink,
+                    referencePrice = req.referencePrice,
+                    sharedUserIds = req.sharedUserIds,
+                    shareWithUsernames = req.shareWithUsernames
+                ) ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Product updated successfully", updatedProduct.toDto()))
+            }
+
+            // Update product shares / visible members (Admin or Product Creator)
+            patch("/{id}/shares") {
+                val principal = call.getUserPrincipal()
+                val productId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid product ID"))
+
+                val existingProduct = getProductByIdUseCase(productId)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                if (principal.role != "Admin" && existingProduct.userId != principal.id) {
+                    return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Only Admin or product creator can update shares"))
+                }
+
+                val req = try {
+                    call.receive<UpdateProductSharesRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val updatedProduct = updateProductSharesUseCase(
+                    productId = productId,
+                    sharedUserIds = req.sharedUserIds,
+                    shareWithUsernames = req.shareWithUsernames
+                ) ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Product shares updated successfully", updatedProduct.toDto()))
             }
 
             // Admin / Warehouse only: update warehouse price & note

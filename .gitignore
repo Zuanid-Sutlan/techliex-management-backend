@@ -4,6 +4,7 @@
 /build/classes/
 /build/classes/kotlin/main/
 /build/classes/kotlin/test/
+/.kotlin
 
 # Local database file storage
 /data/
