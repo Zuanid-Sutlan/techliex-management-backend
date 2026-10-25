@@ -26,3 +26,9 @@ class DeactivateUserUseCase(private val userRepository: UserRepository) {
         return userRepository.deactivateUser(username)
     }
 }
+
+class DeleteUserPermanentlyUseCase(private val userRepository: UserRepository) {
+    suspend operator fun invoke(username: String): Boolean {
+        return userRepository.deleteUserPermanently(username)
+    }
+}

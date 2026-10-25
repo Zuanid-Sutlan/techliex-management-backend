@@ -1,11 +1,12 @@
 package com.techliex.data.db.table
 
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import java.math.BigDecimal
 
 object ProductsTable : Table("products") {
     val id = long("id").autoIncrement()
-    val userId = reference("user_id", UsersTable.id)
+    val userId = reference("user_id", UsersTable.id, onDelete = ReferenceOption.CASCADE)
     val title = varchar("title", 255)
     val description = text("description").nullable()
     val productImageUrl = text("product_image_url")

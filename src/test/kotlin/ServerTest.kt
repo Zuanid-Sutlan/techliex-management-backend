@@ -33,6 +33,7 @@ class ServerTest {
             DatabaseFactory.init(environment.config)
             JwtConfig.init(environment.config)
 
+            configureMonitoring()
             configureSerialization()
             configureSecurity()
             configureStatusPages()
@@ -188,19 +189,27 @@ class ServerTest {
             header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
             setBody(CreateOrderRequest(
+                orderNumber = "ORD-1001",
                 orderDate = "15/01/2025",
                 productId = productId,
                 address = "123 Main St",
-                variationNote = "Color Black",
+                note = "Custom keycaps variation",
                 quantity = 2,
                 listingPrice = 45.0,
-                paymentImageUrl = "data:image/jpeg;base64,iVBORw0KGgo..."
+                paymentScreenshot = "data:image/jpeg;base64,iVBORw0KGgo..."
             ))
         }
         assertEquals(HttpStatusCode.Created, createOrderResponse.status)
         val orderData = createOrderResponse.body<ApiResponse<OrderDto>>().data
         assertNotNull(orderData)
         val orderId = orderData.id
+
+        assertEquals("ORD-1001", orderData.orderNumber)
+        assertEquals("Wireless Keyboard", orderData.productName)
+        assertEquals("data:image/jpeg;base64,iVBORw0KGgo...", orderData.productImage)
+        assertEquals(20.0, orderData.productSourcePrice)
+        assertEquals("Custom keycaps variation", orderData.note)
+        assertEquals("data:image/jpeg;base64,iVBORw0KGgo...", orderData.paymentScreenshot)
 
         // 14. Get Orders List
         val getOrdersResponse = client.get("/api/v1/orders") {
@@ -215,6 +224,9 @@ class ServerTest {
             setBody(UpdateLogisticsRequest(trackId = "TRK123456", company = "FedEx"))
         }
         assertEquals(HttpStatusCode.OK, updateLogisticsResponse.status)
+        val shippedOrder = updateLogisticsResponse.body<ApiResponse<OrderDto>>().data
+        assertNotNull(shippedOrder)
+        assertTrue(shippedOrder.updatedAt.isNotBlank())
 
         // 16. Complete Order
         val completeOrderResponse = client.patch("/api/v1/orders/$orderId/complete") {
@@ -238,6 +250,7 @@ class ServerTest {
             DatabaseFactory.init(environment.config)
             JwtConfig.init(environment.config)
 
+            configureMonitoring()
             configureSerialization()
             configureSecurity()
             configureStatusPages()
@@ -375,6 +388,7 @@ class ServerTest {
             header(HttpHeaders.Authorization, "Bearer $user1Token")
             contentType(ContentType.Application.Json)
             setBody(CreateOrderRequest(
+                orderNumber = "ORD-TEST-SHARED",
                 orderDate = "2025-01-01",
                 productId = productId,
                 address = "456 Test Street",
@@ -396,5 +410,315 @@ class ServerTest {
             header(HttpHeaders.Authorization, "Bearer $adminToken")
         }
         assertEquals(HttpStatusCode.NotFound, checkGoneRes.status)
+    }
+
+    @Test
+    fun `test order refund chat flow and status management`() = testApplication {
+        application {
+            DatabaseFactory.init(environment.config)
+            JwtConfig.init(environment.config)
+
+            configureMonitoring()
+            configureSerialization()
+            configureSecurity()
+            configureStatusPages()
+            configureCORS()
+            configureRouting()
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                })
+            }
+        }
+
+        // Login Admin
+        val adminLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = "umair", password = "umair123"))
+        }
+        val adminToken = adminLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val ts = System.currentTimeMillis()
+        val buyerName = "buyer_$ts"
+        val outsiderName = "outsider_$ts"
+
+        // Create Buyer and Outsider user
+        client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = buyerName, password = "pass123", name = "Buyer User", role = "Member"))
+        }
+
+        client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = outsiderName, password = "pass123", name = "Outsider User", role = "Member"))
+        }
+
+        // Login as Buyer & Outsider
+        val buyerLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = buyerName, password = "pass123"))
+        }
+        val buyerToken = buyerLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val outsiderLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = outsiderName, password = "pass123"))
+        }
+        val outsiderToken = outsiderLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        // Create Product
+        val createProdRes = client.post("/api/v1/products") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateProductRequest(
+                title = "Bluetooth Headphones",
+                description = "Noise Cancelling",
+                productImageUrl = "data:image/png;base64,prod_img_base64",
+                sourceLink = "https://supplier.com/hp",
+                sourcePrice = 50.0,
+                referenceLink = "https://store.com/hp",
+                referencePrice = 120.0
+            ))
+        }
+        val prodId = createProdRes.body<ApiResponse<ProductDto>>().data!!.id
+
+        // Buyer creates Order
+        val createOrderRes = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $buyerToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderNumber = "ORD-BUYER-999",
+                productId = prodId,
+                address = "789 Park Ave",
+                note = "Blue color variation requested",
+                quantity = 1,
+                paymentScreenshot = "data:image/png;base64,payment_proof_123"
+            ))
+        }
+        assertEquals(HttpStatusCode.Created, createOrderRes.status)
+        val order = createOrderRes.body<ApiResponse<OrderDto>>().data!!
+        val orderId = order.id
+
+        assertEquals("ORD-BUYER-999", order.orderNumber)
+        assertEquals("Bluetooth Headphones", order.productName)
+        assertEquals("data:image/png;base64,prod_img_base64", order.productImage)
+        assertEquals(50.0, order.productSourcePrice)
+        assertEquals("Blue color variation requested", order.note)
+        assertEquals("data:image/png;base64,payment_proof_123", order.paymentScreenshot)
+        assertEquals("Active", order.status)
+
+        // Buyer opens refund
+        val openRefundRes = client.post("/api/v1/orders/$orderId/refund") {
+            header(HttpHeaders.Authorization, "Bearer $buyerToken")
+            contentType(ContentType.Application.Json)
+            setBody(OpenRefundRequest(
+                message = "Earphone left side non-functional",
+                screenshots = listOf("data:image/png;base64,damaged_pic_1")
+            ))
+        }
+        assertEquals(HttpStatusCode.OK, openRefundRes.status)
+        val refundedOrder = openRefundRes.body<ApiResponse<OrderDto>>().data!!
+        assertEquals("Refund Requested", refundedOrder.status)
+
+        // Admin sends reply in refund chat
+        val adminMsgRes = client.post("/api/v1/orders/$orderId/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(SendRefundMessageRequest(
+                message = "Sorry for the issue. Please share product serial number screenshot.",
+                screenshots = listOf("data:image/png;base64,return_instructions")
+            ))
+        }
+        assertEquals(HttpStatusCode.Created, adminMsgRes.status)
+
+        // Buyer replies with screenshot
+        val buyerReplyRes = client.post("/api/v1/orders/$orderId/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $buyerToken")
+            contentType(ContentType.Application.Json)
+            setBody(SendRefundMessageRequest(
+                message = "Attached is the serial number barcode photo.",
+                screenshots = listOf("data:image/png;base64,serial_barcode")
+            ))
+        }
+        assertEquals(HttpStatusCode.Created, buyerReplyRes.status)
+
+        // Fetch refund chat messages
+        val getMessagesRes = client.get("/api/v1/orders/$orderId/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $buyerToken")
+        }
+        assertEquals(HttpStatusCode.OK, getMessagesRes.status)
+        val messages = getMessagesRes.body<ApiResponse<List<RefundMessageDto>>>().data!!
+        assertEquals(3, messages.size)
+        assertEquals("Earphone left side non-functional", messages[0].message)
+        assertTrue(messages[0].screenshots.contains("data:image/png;base64,damaged_pic_1"))
+
+        assertEquals("Sorry for the issue. Please share product serial number screenshot.", messages[1].message)
+        assertEquals("umair", messages[1].senderName)
+
+        assertEquals("Attached is the serial number barcode photo.", messages[2].message)
+
+        // Admin updates status to "Refund Approved"
+        val statusUpdateRes = client.patch("/api/v1/orders/$orderId/status") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateOrderStatusRequest(status = "Refund Approved"))
+        }
+        assertEquals(HttpStatusCode.OK, statusUpdateRes.status)
+        assertEquals("Refund Approved", statusUpdateRes.body<ApiResponse<OrderDto>>().data!!.status)
+
+        // Outsider attempts to view refund messages -> 403 Forbidden
+        val outsiderAccessRes = client.get("/api/v1/orders/$orderId/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+        }
+        assertEquals(HttpStatusCode.Forbidden, outsiderAccessRes.status)
+    }
+
+    @Test
+    fun `test permanent deletion of users orders and chats`() = testApplication {
+        application {
+            DatabaseFactory.init(environment.config)
+            JwtConfig.init(environment.config)
+
+            configureMonitoring()
+            configureSerialization()
+            configureSecurity()
+            configureStatusPages()
+            configureCORS()
+            configureRouting()
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                })
+            }
+        }
+
+        // Login Admin
+        val adminLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = "umair", password = "umair123"))
+        }
+        val adminToken = adminLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        val ts = System.currentTimeMillis()
+        val tempUser = "del_user_$ts"
+
+        // Create Temp User
+        client.post("/api/v1/users") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateUserRequest(username = tempUser, password = "pass123", name = "Temp User", role = "Member"))
+        }
+
+        val tempLogin = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username = tempUser, password = "pass123"))
+        }
+        val tempToken = tempLogin.body<ApiResponse<LoginResponse>>().data!!.token
+
+        // Create Product for temp user
+        val prodRes = client.post("/api/v1/products") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateProductRequest(
+                title = "Temp Speaker",
+                description = "Portable",
+                productImageUrl = "https://example.com/speaker.jpg",
+                sourceLink = "https://supplier.com/sp",
+                sourcePrice = 15.0,
+                referenceLink = "https://store.com/sp",
+                referencePrice = 40.0
+            ))
+        }
+        val prodId = prodRes.body<ApiResponse<ProductDto>>().data!!.id
+
+        // Temp User creates Order 1 & Order 2
+        val o1Res = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderNumber = "ORD-DEL-1",
+                productId = prodId,
+                address = "123 Del St",
+                quantity = 1,
+                paymentScreenshot = "data:image/png;base64,proof1"
+            ))
+        }
+        val order1Id = o1Res.body<ApiResponse<OrderDto>>().data!!.id
+
+        val o2Res = client.post("/api/v1/orders") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateOrderRequest(
+                orderNumber = "ORD-DEL-2",
+                productId = prodId,
+                address = "123 Del St",
+                quantity = 2,
+                paymentScreenshot = "data:image/png;base64,proof2"
+            ))
+        }
+        val order2Id = o2Res.body<ApiResponse<OrderDto>>().data!!.id
+
+        // Send chats on Order 1
+        client.post("/api/v1/orders/$order1Id/refund") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+            contentType(ContentType.Application.Json)
+            setBody(OpenRefundRequest(message = "Defective speaker", screenshots = listOf("data:image/png;base64,defect")))
+        }
+
+        client.post("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+            contentType(ContentType.Application.Json)
+            setBody(SendRefundMessageRequest(message = "Please send photo", screenshots = emptyList()))
+        }
+
+        // Verify chats exist on Order 1
+        val msgsBefore = client.get("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(2, msgsBefore.body<ApiResponse<List<RefundMessageDto>>>().data!!.size)
+
+        // 1. Test deleting only the chats against Order 1
+        val delChatsRes = client.delete("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, delChatsRes.status)
+
+        val msgsAfterDelChats = client.get("/api/v1/orders/$order1Id/refund/messages") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(0, msgsAfterDelChats.body<ApiResponse<List<RefundMessageDto>>>().data!!.size)
+
+        // 2. Test deleting Order 2 permanently
+        val delOrder2Res = client.delete("/api/v1/orders/$order2Id") {
+            header(HttpHeaders.Authorization, "Bearer $tempToken")
+        }
+        assertEquals(HttpStatusCode.OK, delOrder2Res.status)
+
+        val checkOrder2 = client.get("/api/v1/orders/$order2Id") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, checkOrder2.status)
+
+        // 3. Test deleting Temp User permanently from database
+        val delUserPermRes = client.delete("/api/v1/users/$tempUser/permanent") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, delUserPermRes.status)
+
+        // Verify Temp User is gone from database
+        val checkUserGone = client.get("/api/v1/users/$tempUser") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, checkUserGone.status)
     }
 }

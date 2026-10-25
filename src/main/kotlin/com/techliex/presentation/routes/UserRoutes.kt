@@ -18,7 +18,8 @@ fun Route.userRoutes(
     deactivateUserUseCase: DeactivateUserUseCase,
     activateUserUseCase: ActivateUserUseCase,
     resetUserPasswordUseCase: ResetUserPasswordUseCase,
-    changePasswordUseCase: ChangePasswordUseCase
+    changePasswordUseCase: ChangePasswordUseCase,
+    deleteUserPermanentlyUseCase: DeleteUserPermanentlyUseCase
 ) {
     route("/api/v1/users") {
         authenticate("auth-jwt") {
@@ -87,7 +88,7 @@ fun Route.userRoutes(
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "User found", user.toDto()))
             }
 
-            // Admin only: delete / deactivate user
+            // Admin only: deactivate user
             delete("/{username}") {
                 val principal = call.getUserPrincipal()
                 if (principal.role != "Admin") {
@@ -100,6 +101,24 @@ fun Route.userRoutes(
                 val success = deactivateUserUseCase(username)
                 if (success) {
                     call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User deactivated successfully"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "User not found"))
+                }
+            }
+
+            // Admin only: delete user permanently from database
+            delete("/{username}/permanent") {
+                val principal = call.getUserPrincipal()
+                if (principal.role != "Admin") {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Admin access required"))
+                }
+
+                val username = call.parameters["username"]
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Username parameter missing"))
+
+                val success = deleteUserPermanentlyUseCase(username)
+                if (success) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User permanently deleted from database"))
                 } else {
                     call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "User not found"))
                 }

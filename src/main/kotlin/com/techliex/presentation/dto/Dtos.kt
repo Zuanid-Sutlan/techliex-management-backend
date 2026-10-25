@@ -132,13 +132,16 @@ fun Product.toDto(): ProductDto = ProductDto(
 
 @Serializable
 data class CreateOrderRequest(
-    val orderDate: String,
+    val orderNumber: String = "",
+    val orderDate: String? = null,
     val productId: Long,
     val address: String,
+    val note: String? = null,
     val variationNote: String? = null,
-    val quantity: Int,
-    val listingPrice: Double,
-    val paymentImageUrl: String
+    val quantity: Int = 1,
+    val listingPrice: Double? = null,
+    val paymentScreenshot: String? = null,
+    val paymentImageUrl: String? = null
 )
 
 @Serializable
@@ -148,40 +151,94 @@ data class UpdateLogisticsRequest(
 )
 
 @Serializable
+data class UpdateOrderStatusRequest(
+    val status: String
+)
+
+@Serializable
+data class OpenRefundRequest(
+    val message: String? = null,
+    val screenshots: List<String> = emptyList()
+)
+
+@Serializable
+data class SendRefundMessageRequest(
+    val message: String,
+    val screenshots: List<String> = emptyList()
+)
+
+@Serializable
+data class RefundMessageDto(
+    val id: Long,
+    val orderId: Long,
+    val senderId: Long,
+    val senderName: String,
+    val senderRole: String,
+    val message: String,
+    val screenshots: List<String> = emptyList(),
+    val createdAt: String
+)
+
+fun RefundMessage.toDto(): RefundMessageDto = RefundMessageDto(
+    id = id,
+    orderId = orderId,
+    senderId = senderId,
+    senderName = senderName,
+    senderRole = senderRole,
+    message = message,
+    screenshots = screenshots,
+    createdAt = createdAt
+)
+
+@Serializable
 data class OrderDto(
     val id: Long,
-    val orderDate: String,
+    val orderNumber: String = "",
+    val orderDate: String = "",
     val userId: Long,
     val userName: String? = null,
     val productId: Long,
+    val productName: String = "",
+    val productImage: String = "",
+    val productSourcePrice: Double = 0.0,
     val productTitle: String? = null,
     val address: String,
-    val variationNote: String?,
+    val note: String? = null,
+    val variationNote: String? = null,
     val quantity: Int,
     val listingPrice: Double,
-    val paymentImageUrl: String,
-    val trackId: String,
-    val company: String,
-    val status: String,
-    val createdAt: String
+    val paymentScreenshot: String = "",
+    val paymentImageUrl: String? = null,
+    val trackId: String = "",
+    val company: String = "",
+    val status: String = "Active",
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
 fun Order.toDto(): OrderDto = OrderDto(
     id = id,
+    orderNumber = orderNumber,
     orderDate = orderDate,
     userId = userId,
     userName = userName,
     productId = productId,
-    productTitle = productTitle,
+    productName = productName,
+    productImage = productImage,
+    productSourcePrice = productSourcePrice,
+    productTitle = productTitle ?: productName,
     address = address,
-    variationNote = variationNote,
+    note = note ?: variationNote,
+    variationNote = variationNote ?: note,
     quantity = quantity,
     listingPrice = listingPrice,
-    paymentImageUrl = paymentImageUrl,
+    paymentScreenshot = paymentScreenshot.ifEmpty { paymentImageUrl ?: "" },
+    paymentImageUrl = paymentImageUrl ?: paymentScreenshot,
     trackId = trackId,
     company = company,
     status = status,
-    createdAt = createdAt
+    createdAt = createdAt,
+    updatedAt = updatedAt.ifEmpty { createdAt }
 )
 
 @Serializable

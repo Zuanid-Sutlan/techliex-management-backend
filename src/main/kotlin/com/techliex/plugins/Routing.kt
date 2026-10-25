@@ -31,6 +31,7 @@ fun Application.configureRouting() {
     val deactivateUserUseCase = DeactivateUserUseCase(userRepository)
     val activateUserUseCase = ActivateUserUseCase(userRepository)
     val resetUserPasswordUseCase = ResetUserPasswordUseCase(userRepository)
+    val deleteUserPermanentlyUseCase = DeleteUserPermanentlyUseCase(userRepository)
 
     val createProductUseCase = CreateProductUseCase(productRepository)
     val getProductsUseCase = GetProductsUseCase(productRepository)
@@ -45,6 +46,12 @@ fun Application.configureRouting() {
     val getOrderByIdUseCase = GetOrderByIdUseCase(orderRepository)
     val updateLogisticsUseCase = UpdateLogisticsUseCase(orderRepository)
     val completeOrderUseCase = CompleteOrderUseCase(orderRepository)
+    val updateOrderStatusUseCase = UpdateOrderStatusUseCase(orderRepository)
+    val openRefundUseCase = OpenRefundUseCase(orderRepository)
+    val sendRefundMessageUseCase = SendRefundMessageUseCase(orderRepository)
+    val getRefundMessagesUseCase = GetRefundMessagesUseCase(orderRepository)
+    val deleteOrderUseCase = DeleteOrderUseCase(orderRepository)
+    val deleteOrderRefundMessagesUseCase = DeleteOrderRefundMessagesUseCase(orderRepository)
 
     val getDashboardStatsUseCase = GetDashboardStatsUseCase(dashboardRepository)
     val getAppVersionUseCase = GetAppVersionUseCase()
@@ -65,7 +72,8 @@ fun Application.configureRouting() {
             deactivateUserUseCase,
             activateUserUseCase,
             resetUserPasswordUseCase,
-            changePasswordUseCase
+            changePasswordUseCase,
+            deleteUserPermanentlyUseCase
         )
         productRoutes(
             createProductUseCase,
@@ -76,7 +84,19 @@ fun Application.configureRouting() {
             updateProductSharesUseCase,
             deleteProductUseCase
         )
-        orderRoutes(createOrderUseCase, getOrdersUseCase, getOrderByIdUseCase, updateLogisticsUseCase, completeOrderUseCase)
+        orderRoutes(
+            createOrderUseCase,
+            getOrdersUseCase,
+            getOrderByIdUseCase,
+            updateLogisticsUseCase,
+            completeOrderUseCase,
+            updateOrderStatusUseCase,
+            openRefundUseCase,
+            sendRefundMessageUseCase,
+            getRefundMessagesUseCase,
+            deleteOrderUseCase,
+            deleteOrderRefundMessagesUseCase
+        )
         dashboardRoutes(getDashboardStatsUseCase)
     }
 }

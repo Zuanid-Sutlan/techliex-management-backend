@@ -14,7 +14,13 @@ fun Route.orderRoutes(
     getOrdersUseCase: GetOrdersUseCase,
     getOrderByIdUseCase: GetOrderByIdUseCase,
     updateLogisticsUseCase: UpdateLogisticsUseCase,
-    completeOrderUseCase: CompleteOrderUseCase
+    completeOrderUseCase: CompleteOrderUseCase,
+    updateOrderStatusUseCase: UpdateOrderStatusUseCase,
+    openRefundUseCase: OpenRefundUseCase,
+    sendRefundMessageUseCase: SendRefundMessageUseCase,
+    getRefundMessagesUseCase: GetRefundMessagesUseCase,
+    deleteOrderUseCase: DeleteOrderUseCase,
+    deleteOrderRefundMessagesUseCase: DeleteOrderRefundMessagesUseCase
 ) {
     route("/api/v1/orders") {
         authenticate("auth-jwt") {
@@ -28,17 +34,22 @@ fun Route.orderRoutes(
                     return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
                 }
 
-                val order = createOrderUseCase(
-                    userId = principal.id,
-                    orderDate = req.orderDate,
-                    productId = req.productId,
-                    address = req.address,
-                    variationNote = req.variationNote,
-                    quantity = req.quantity,
-                    listingPrice = req.listingPrice,
-                    paymentImageUrl = req.paymentImageUrl
-                )
-                call.respond(HttpStatusCode.Created, ApiResponse(true, "Order placed successfully", order.toDto()))
+                try {
+                    val order = createOrderUseCase(
+                        userId = principal.id,
+                        orderNumber = req.orderNumber,
+                        orderDate = req.orderDate,
+                        productId = req.productId,
+                        address = req.address,
+                        note = req.note ?: req.variationNote,
+                        quantity = req.quantity,
+                        listingPrice = req.listingPrice,
+                        paymentScreenshot = req.paymentScreenshot ?: req.paymentImageUrl
+                    )
+                    call.respond(HttpStatusCode.Created, ApiResponse(true, "Order placed successfully", order.toDto()))
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, e.message ?: "Failed to place order"))
+                }
             }
 
             // Get orders scoped by role
@@ -50,11 +61,16 @@ fun Route.orderRoutes(
 
             // Get order by ID
             get("/{id}") {
+                val principal = call.getUserPrincipal()
                 val orderId = call.parameters["id"]?.toLongOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
 
                 val order = getOrderByIdUseCase(orderId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse" && order.userId != principal.id) {
+                    return@get call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
 
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Order details retrieved", order.toDto()))
             }
@@ -90,6 +106,152 @@ fun Route.orderRoutes(
                     ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
 
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Order finalized and completed", completedOrder.toDto()))
+            }
+
+            // Update custom status text
+            patch("/{id}/status") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse" && existingOrder.userId != principal.id) {
+                    return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val req = try {
+                    call.receive<UpdateOrderStatusRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val updatedOrder = updateOrderStatusUseCase(orderId, req.status)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Order status updated", updatedOrder.toDto()))
+            }
+
+            // Admin or order owner: delete order permanently (and its chats)
+            delete("/{id}") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@delete call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && existingOrder.userId != principal.id) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val deleted = deleteOrderUseCase(orderId)
+                if (deleted) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "Order and associated chats deleted permanently"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+                }
+            }
+
+            // Open Refund on Order
+            post("/{id}/refund") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@post call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse" && existingOrder.userId != principal.id) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val req = try {
+                    call.receive<OpenRefundRequest>()
+                } catch (_: Exception) {
+                    OpenRefundRequest()
+                }
+
+                val updatedOrder = openRefundUseCase(
+                    orderId = orderId,
+                    userId = principal.id,
+                    userName = principal.username,
+                    userRole = principal.role,
+                    message = req.message,
+                    screenshots = req.screenshots
+                ) ?: return@post call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Refund initiated successfully", updatedOrder.toDto()))
+            }
+
+            // Send Refund Chat Message / Screenshot
+            post("/{id}/refund/messages") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@post call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse" && existingOrder.userId != principal.id) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val req = try {
+                    call.receive<SendRefundMessageRequest>()
+                } catch (_: Exception) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val message = sendRefundMessageUseCase(
+                    orderId = orderId,
+                    senderId = principal.id,
+                    senderName = principal.username,
+                    senderRole = principal.role,
+                    message = req.message,
+                    screenshots = req.screenshots
+                ) ?: return@post call.respond(HttpStatusCode.InternalServerError, ApiResponse<Unit>(false, "Failed to send message"))
+
+                call.respond(HttpStatusCode.Created, ApiResponse(true, "Refund message sent", message.toDto()))
+            }
+
+            // Get Refund Chat Messages
+            get("/{id}/refund/messages") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@get call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse" && existingOrder.userId != principal.id) {
+                    return@get call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val messages = getRefundMessagesUseCase(orderId).map { it.toDto() }
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Refund messages retrieved", messages))
+            }
+
+            // Admin or order owner: delete all refund chat messages against the order
+            delete("/{id}/refund/messages") {
+                val principal = call.getUserPrincipal()
+                val orderId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid order ID"))
+
+                val existingOrder = getOrderByIdUseCase(orderId)
+                    ?: return@delete call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+
+                if (principal.role != "Admin" && existingOrder.userId != principal.id) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
+                }
+
+                val deleted = deleteOrderRefundMessagesUseCase(orderId)
+                if (deleted) {
+                    call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "All refund chat messages deleted successfully"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
+                }
             }
         }
     }

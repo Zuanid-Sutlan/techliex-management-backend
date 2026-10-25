@@ -12,4 +12,5 @@ interface UserRepository {
     suspend fun activateUser(username: String): Boolean
     suspend fun updatePassword(userId: Long, newPasswordHash: String): Boolean
     suspend fun updatePasswordByUsername(username: String, newPasswordHash: String): Boolean
+    suspend fun deleteUserPermanently(username: String): Boolean
 }

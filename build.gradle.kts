@@ -85,10 +85,12 @@ dependencies {
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
     implementation("io.ktor:ktor-server-cors:$ktorVersion")
     implementation("io.ktor:ktor-server-swagger:$ktorVersion")
     implementation("io.ktor:ktor-server-openapi:$ktorVersion")
     implementation(libs.logback.classic)
+    implementation("org.slf4j:slf4j-api:2.0.16")
 
     // Database & Security
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
