@@ -54,10 +54,7 @@ object DatabaseFactory {
             activeDataSource = dataSource
             currentDbType = "PostgreSQL"
 
-            transaction {
-                SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
-                seedAdminUser()
-            }
+            initSchemaAndSeed()
             println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
         } catch (e: Exception) {
             println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
@@ -74,15 +71,26 @@ object DatabaseFactory {
                 activeDataSource = h2DataSource
                 currentDbType = "H2 File-based Fallback"
 
-                transaction {
-                    SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
-                    seedAdminUser()
-                }
+                initSchemaAndSeed()
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
                 currentDbType = "Disconnected"
                 println("❌ Database initialization error: ${h2Ex.message}")
             }
+        }
+    }
+
+    private fun initSchemaAndSeed() {
+        transaction {
+            try {
+                exec("DELETE FROM refund_messages WHERE order_id NOT IN (SELECT id FROM orders) OR sender_id NOT IN (SELECT id FROM users);")
+                exec("DELETE FROM orders WHERE user_id NOT IN (SELECT id FROM users);")
+                exec("DELETE FROM products WHERE user_id NOT IN (SELECT id FROM users);")
+            } catch (_: Exception) {
+                // Table might not exist yet on fresh setup
+            }
+            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
+            seedAdminUser()
         }
     }
 

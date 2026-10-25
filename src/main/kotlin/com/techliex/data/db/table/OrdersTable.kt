@@ -1,5 +1,6 @@
 package com.techliex.data.db.table
 
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import java.math.BigDecimal
 
@@ -7,7 +8,7 @@ object OrdersTable : Table("orders") {
     val id = long("id").autoIncrement()
     val orderNumber = varchar("order_number", 100).default("")
     val orderDate = varchar("order_date", 50)
-    val userId = reference("user_id", UsersTable.id)
+    val userId = reference("user_id", UsersTable.id, onDelete = ReferenceOption.CASCADE)
     val productId = long("product_id")
     val productName = varchar("product_name", 255).default("")
     val productImage = text("product_image").default("")
@@ -23,6 +24,7 @@ object OrdersTable : Table("orders") {
     val company = varchar("company", 100).default("")
     val status = varchar("status", 50).default("Active")
     val createdAt = varchar("created_at", 50)
+    val updatedAt = varchar("updated_at", 50).default("")
 
     override val primaryKey = PrimaryKey(id)
 }

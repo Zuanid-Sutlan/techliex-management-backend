@@ -224,6 +224,9 @@ class ServerTest {
             setBody(UpdateLogisticsRequest(trackId = "TRK123456", company = "FedEx"))
         }
         assertEquals(HttpStatusCode.OK, updateLogisticsResponse.status)
+        val shippedOrder = updateLogisticsResponse.body<ApiResponse<OrderDto>>().data
+        assertNotNull(shippedOrder)
+        assertTrue(shippedOrder.updatedAt.isNotBlank())
 
         // 16. Complete Order
         val completeOrderResponse = client.patch("/api/v1/orders/$orderId/complete") {

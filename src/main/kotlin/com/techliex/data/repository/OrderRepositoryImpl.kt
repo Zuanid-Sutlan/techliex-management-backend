@@ -62,6 +62,7 @@ class OrderRepositoryImpl : OrderRepository {
             it[OrdersTable.company] = ""
             it[OrdersTable.status] = "Active"
             it[OrdersTable.createdAt] = now
+            it[OrdersTable.updatedAt] = now
         } get OrdersTable.id
 
         getOrderByIdInternal(generatedId)!!
@@ -89,26 +90,32 @@ class OrderRepositoryImpl : OrderRepository {
     }
 
     override suspend fun updateLogistics(orderId: Long, trackId: String, company: String): Order? = DatabaseFactory.dbQuery {
+        val now = Instant.now().toString()
         val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[OrdersTable.trackId] = trackId
             it[OrdersTable.company] = company
             it[status] = "Shipped"
+            it[updatedAt] = now
         }
 
         if (updatedRows > 0) getOrderByIdInternal(orderId) else null
     }
 
     override suspend fun completeOrder(orderId: Long): Order? = DatabaseFactory.dbQuery {
+        val now = Instant.now().toString()
         val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[status] = "Completed"
+            it[updatedAt] = now
         }
 
         if (updatedRows > 0) getOrderByIdInternal(orderId) else null
     }
 
     override suspend fun updateOrderStatus(orderId: Long, status: String): Order? = DatabaseFactory.dbQuery {
+        val now = Instant.now().toString()
         val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[OrdersTable.status] = status
+            it[updatedAt] = now
         }
 
         if (updatedRows > 0) getOrderByIdInternal(orderId) else null
@@ -123,9 +130,11 @@ class OrderRepositoryImpl : OrderRepository {
         screenshots: List<String>
     ): Order? = DatabaseFactory.dbQuery {
         val order = getOrderByIdInternal(orderId) ?: return@dbQuery null
+        val now = Instant.now().toString()
 
         OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[status] = "Refund Requested"
+            it[updatedAt] = now
         }
 
         val initialMsg = if (!message.isNullOrBlank()) message else "Refund request opened for order ${order.orderNumber.ifEmpty { order.id.toString() }}"
@@ -171,6 +180,10 @@ class OrderRepositoryImpl : OrderRepository {
     ): RefundMessage {
         val now = Instant.now().toString()
         val jsonScreenshots = Json.encodeToString(screenshots)
+
+        OrdersTable.update({ OrdersTable.id eq orderId }) {
+            it[updatedAt] = now
+        }
 
         val generatedId = RefundMessagesTable.insert {
             it[RefundMessagesTable.orderId] = orderId
@@ -227,6 +240,10 @@ class OrderRepositoryImpl : OrderRepository {
         val storedVariationNote = row[OrdersTable.variationNote]
         val effectiveNote = storedNote ?: storedVariationNote
 
+        val storedCreatedAt = row[OrdersTable.createdAt]
+        val storedUpdatedAt = try { row[OrdersTable.updatedAt] } catch (_: Exception) { "" }
+        val effectiveUpdatedAt = if (storedUpdatedAt.isNotBlank()) storedUpdatedAt else storedCreatedAt
+
         return Order(
             id = row[OrdersTable.id],
             orderNumber = row[OrdersTable.orderNumber],
@@ -248,7 +265,8 @@ class OrderRepositoryImpl : OrderRepository {
             trackId = row[OrdersTable.trackId],
             company = row[OrdersTable.company],
             status = row[OrdersTable.status],
-            createdAt = row[OrdersTable.createdAt]
+            createdAt = storedCreatedAt,
+            updatedAt = effectiveUpdatedAt
         )
     }
 

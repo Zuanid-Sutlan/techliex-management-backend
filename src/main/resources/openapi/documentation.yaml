@@ -540,6 +540,9 @@ components:
         createdAt:
           type: string
           example: "2025-01-01T00:00:00Z"
+        updatedAt:
+          type: string
+          example: "2025-01-02T10:30:00Z"
 
     DashboardStatsDto:
       type: object

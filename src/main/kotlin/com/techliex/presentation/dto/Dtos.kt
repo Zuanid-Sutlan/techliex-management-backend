@@ -212,7 +212,8 @@ data class OrderDto(
     val trackId: String = "",
     val company: String = "",
     val status: String = "Active",
-    val createdAt: String = ""
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
 fun Order.toDto(): OrderDto = OrderDto(
@@ -236,7 +237,8 @@ fun Order.toDto(): OrderDto = OrderDto(
     trackId = trackId,
     company = company,
     status = status,
-    createdAt = createdAt
+    createdAt = createdAt,
+    updatedAt = updatedAt.ifEmpty { createdAt }
 )
 
 @Serializable

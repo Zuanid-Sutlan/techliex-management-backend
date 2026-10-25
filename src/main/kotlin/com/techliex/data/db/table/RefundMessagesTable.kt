@@ -1,11 +1,12 @@
 package com.techliex.data.db.table
 
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 
 object RefundMessagesTable : Table("refund_messages") {
     val id = long("id").autoIncrement()
-    val orderId = reference("order_id", OrdersTable.id)
-    val senderId = reference("sender_id", UsersTable.id)
+    val orderId = reference("order_id", OrdersTable.id, onDelete = ReferenceOption.CASCADE)
+    val senderId = reference("sender_id", UsersTable.id, onDelete = ReferenceOption.CASCADE)
     val senderName = varchar("sender_name", 255)
     val senderRole = varchar("sender_role", 50)
     val message = text("message")
