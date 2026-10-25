@@ -54,7 +54,7 @@ object DatabaseFactory {
             activeDataSource = dataSource
             currentDbType = "PostgreSQL"
 
-            initSchemaAndSeed()
+            resetDatabaseSchema()
             println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
         } catch (e: Exception) {
             println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
@@ -71,7 +71,7 @@ object DatabaseFactory {
                 activeDataSource = h2DataSource
                 currentDbType = "H2 File-based Fallback"
 
-                initSchemaAndSeed()
+                resetDatabaseSchema()
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
                 currentDbType = "Disconnected"
