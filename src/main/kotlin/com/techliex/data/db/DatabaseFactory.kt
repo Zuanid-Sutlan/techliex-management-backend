@@ -82,12 +82,47 @@ object DatabaseFactory {
 
     private fun initSchemaAndSeed() {
         transaction {
+            // Ensure newly added columns (like updated_at) are present in existing database tables
+            try {
+                exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50) DEFAULT '';")
+            } catch (_: Exception) {
+                // Table might not exist yet on fresh setup
+            }
+
+            // Clean up any orphaned records that violate foreign key integrity
             try {
                 exec("DELETE FROM refund_messages WHERE order_id NOT IN (SELECT id FROM orders) OR sender_id NOT IN (SELECT id FROM users);")
                 exec("DELETE FROM orders WHERE user_id NOT IN (SELECT id FROM users);")
                 exec("DELETE FROM products WHERE user_id NOT IN (SELECT id FROM users);")
             } catch (_: Exception) {
                 // Table might not exist yet on fresh setup
+            }
+
+            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
+            seedAdminUser()
+        }
+    }
+
+    fun clearAllTables() {
+        transaction {
+            try {
+                exec("DELETE FROM refund_messages;")
+                exec("DELETE FROM orders;")
+                exec("DELETE FROM products;")
+                exec("DELETE FROM users;")
+            } catch (e: Exception) {
+                println("⚠️ Failed to clear tables: ${e.message}")
+            }
+            seedAdminUser()
+        }
+    }
+
+    fun resetDatabaseSchema() {
+        transaction {
+            try {
+                SchemaUtils.drop(RefundMessagesTable, OrdersTable, ProductsTable, UsersTable)
+            } catch (e: Exception) {
+                println("⚠️ Failed to drop tables: ${e.message}")
             }
             SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
             seedAdminUser()
