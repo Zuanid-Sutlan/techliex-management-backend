@@ -6,7 +6,7 @@ data class Order(
     val orderDate: String,
     val userId: Long,
     val userName: String? = null,
-    val productId: Long,
+    val productId: Long? = null,
     val productName: String,
     val productImage: String,
     val productSourcePrice: Double,

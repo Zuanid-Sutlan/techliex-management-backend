@@ -25,7 +25,7 @@ fun Route.orderRoutes(
     route("/api/v1/orders") {
         authenticate("auth-jwt") {
 
-            // Create new order
+            // Create new order(s) (supports single or multi-item orders)
             post {
                 val principal = call.getUserPrincipal()
                 val req = try {
@@ -34,21 +34,96 @@ fun Route.orderRoutes(
                     return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
                 }
 
-                try {
-                    val order = createOrderUseCase(
-                        userId = principal.id,
-                        orderNumber = req.orderNumber,
-                        orderDate = req.orderDate,
-                        productId = req.productId,
-                        address = req.address,
-                        note = req.note ?: req.variationNote,
-                        quantity = req.quantity,
-                        listingPrice = req.listingPrice,
-                        paymentScreenshot = req.paymentScreenshot ?: req.paymentImageUrl
+                val rawItems = when {
+                    req.items.isNotEmpty() -> req.items
+                    req.orders.isNotEmpty() -> req.orders
+                    req.productId != null || !req.productName.isNullOrBlank() || !req.productTitle.isNullOrBlank() -> listOf(
+                        CreateOrderItemRequest(
+                            productId = req.productId,
+                            productName = req.productName ?: req.productTitle,
+                            productTitle = req.productTitle ?: req.productName,
+                            productImage = req.productImage,
+                            productSourcePrice = req.productSourcePrice,
+                            quantity = req.quantity,
+                            note = req.note ?: req.variationNote,
+                            variationNote = req.variationNote ?: req.note,
+                            listingPrice = req.listingPrice
+                        )
                     )
-                    call.respond(HttpStatusCode.Created, ApiResponse(true, "Order placed successfully", order.toDto()))
+                    else -> emptyList()
+                }
+
+                if (rawItems.isEmpty()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "At least one product item must be specified"))
+                }
+
+                try {
+                    val createdOrders = rawItems.map { item ->
+                        createOrderUseCase(
+                            userId = principal.id,
+                            orderNumber = req.orderNumber,
+                            orderDate = req.orderDate,
+                            productId = item.productId,
+                            productName = item.productName ?: item.productTitle,
+                            productImage = item.productImage,
+                            productSourcePrice = item.productSourcePrice,
+                            address = req.address,
+                            note = item.note ?: item.variationNote,
+                            quantity = item.quantity,
+                            listingPrice = item.listingPrice,
+                            paymentScreenshot = req.paymentScreenshot ?: req.paymentImageUrl
+                        )
+                    }
+
+                    if (createdOrders.size == 1) {
+                        call.respond(HttpStatusCode.Created, ApiResponse(true, "Order placed successfully", createdOrders.first().toDto()))
+                    } else {
+                        call.respond(HttpStatusCode.Created, ApiResponse(true, "${createdOrders.size} orders placed successfully", createdOrders.map { it.toDto() }))
+                    }
                 } catch (e: IllegalArgumentException) {
                     call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, e.message ?: "Failed to place order"))
+                }
+            }
+
+            // Batch create multiple orders
+            post("/batch") {
+                val principal = call.getUserPrincipal()
+                val req = try {
+                    call.receive<CreateOrderRequest>()
+                } catch (_: Exception) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val rawItems = when {
+                    req.items.isNotEmpty() -> req.items
+                    req.orders.isNotEmpty() -> req.orders
+                    else -> emptyList()
+                }
+
+                if (rawItems.isEmpty()) {
+                    return@post call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "No order items provided in batch request"))
+                }
+
+                try {
+                    val createdOrders = rawItems.map { item ->
+                        createOrderUseCase(
+                            userId = principal.id,
+                            orderNumber = req.orderNumber,
+                            orderDate = req.orderDate,
+                            productId = item.productId,
+                            productName = item.productName ?: item.productTitle,
+                            productImage = item.productImage,
+                            productSourcePrice = item.productSourcePrice,
+                            address = req.address,
+                            note = item.note ?: item.variationNote,
+                            quantity = item.quantity,
+                            listingPrice = item.listingPrice,
+                            paymentScreenshot = req.paymentScreenshot ?: req.paymentImageUrl
+                        )
+                    }
+                    call.respond(HttpStatusCode.Created, ApiResponse(true, "${createdOrders.size} orders placed successfully", createdOrders.map { it.toDto() }))
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, e.message ?: "Failed to place batch orders"))
                 }
             }
 

@@ -58,8 +58,13 @@ class UpdateProductUseCase(private val productRepository: ProductRepository) {
 }
 
 class UpdateWarehouseUseCase(private val productRepository: ProductRepository) {
-    suspend operator fun invoke(productId: Long, warehousePrice: Double, warehouseNote: String?): Product? {
-        return productRepository.updateWarehouse(productId, warehousePrice, warehouseNote)
+    suspend operator fun invoke(
+        productId: Long,
+        warehousePrice: Double,
+        warehouseNote: String?,
+        warehouseImageUrl: String? = null
+    ): Product? {
+        return productRepository.updateWarehouse(productId, warehousePrice, warehouseNote, warehouseImageUrl)
     }
 }
 

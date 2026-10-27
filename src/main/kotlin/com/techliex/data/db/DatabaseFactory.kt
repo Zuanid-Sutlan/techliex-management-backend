@@ -34,6 +34,8 @@ object DatabaseFactory {
         private set
 
     fun init(config: ApplicationConfig) {
+        if (activeDataSource != null) return
+
         val (jdbcUrl, dbUser, dbPassword) = parseConnectionDetails(config)
         val driverClass = config.propertyOrNull("db.driver")?.getString() ?: "org.postgresql.Driver"
 
@@ -54,7 +56,7 @@ object DatabaseFactory {
             activeDataSource = dataSource
             currentDbType = "PostgreSQL"
 
-            resetDatabaseSchema()
+            initSchemaAndSeed()
             println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
         } catch (e: Exception) {
             println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
@@ -71,7 +73,7 @@ object DatabaseFactory {
                 activeDataSource = h2DataSource
                 currentDbType = "H2 File-based Fallback"
 
-                resetDatabaseSchema()
+                initSchemaAndSeed()
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
                 currentDbType = "Disconnected"
@@ -82,11 +84,16 @@ object DatabaseFactory {
 
     private fun initSchemaAndSeed() {
         transaction {
-            // Ensure newly added columns (like updated_at) are present in existing database tables
+            // Ensure newly added columns exist in existing persistent tables
             try {
                 exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50) DEFAULT '';")
-            } catch (_: Exception) {
-                // Table might not exist yet on fresh setup
+            } catch (e: Exception) {
+                println("Notice on orders table alter: ${e.message}")
+            }
+            try {
+                exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_image_url TEXT DEFAULT '';")
+            } catch (e: Exception) {
+                println("Notice on products table alter: ${e.message}")
             }
 
             // Clean up any orphaned records that violate foreign key integrity

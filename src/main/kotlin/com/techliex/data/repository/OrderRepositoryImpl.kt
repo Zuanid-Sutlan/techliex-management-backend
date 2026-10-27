@@ -20,24 +20,43 @@ class OrderRepositoryImpl : OrderRepository {
         userId: Long,
         orderNumber: String?,
         orderDate: String?,
-        productId: Long,
+        productId: Long?,
+        productName: String?,
+        productImage: String?,
+        productSourcePrice: Double?,
         address: String,
         note: String?,
         quantity: Int,
         listingPrice: Double?,
         paymentScreenshot: String?
     ): Order = DatabaseFactory.dbQuery {
-        val productRow = ProductsTable.selectAll()
-            .where { ProductsTable.id eq productId }
-            .singleOrNull()
-            ?: throw IllegalArgumentException("Product not found with ID: $productId")
+        val finalProductName: String
+        val finalProductImage: String
+        val finalSourcePrice: Double
+        val finalListingPrice: Double
 
-        val pTitle = productRow[ProductsTable.title]
-        val pImg = productRow[ProductsTable.productImageUrl]
-        val pSourcePrice = productRow[ProductsTable.sourcePrice]
-        val pRefPrice = productRow[ProductsTable.referencePrice]
+        if (productId != null) {
+            val productRow = ProductsTable.selectAll()
+                .where { ProductsTable.id eq productId }
+                .singleOrNull()
+                ?: throw IllegalArgumentException("Product not found with ID: $productId")
 
-        val effectiveListingPrice = listingPrice ?: pRefPrice.toDouble()
+            val pTitle = productRow[ProductsTable.title]
+            val pImg = productRow[ProductsTable.productImageUrl]
+            val pSourcePrice = productRow[ProductsTable.sourcePrice]
+            val pRefPrice = productRow[ProductsTable.referencePrice]
+
+            finalProductName = productName?.ifBlank { null } ?: pTitle
+            finalProductImage = productImage?.ifBlank { null } ?: pImg
+            finalSourcePrice = productSourcePrice ?: pSourcePrice.toDouble()
+            finalListingPrice = listingPrice ?: pRefPrice.toDouble()
+        } else {
+            finalProductName = productName?.ifBlank { null } ?: "Custom Product"
+            finalProductImage = productImage ?: ""
+            finalSourcePrice = productSourcePrice ?: 0.0
+            finalListingPrice = listingPrice ?: 0.0
+        }
+
         val effectiveOrderDate = if (!orderDate.isNullOrBlank()) orderDate else Instant.now().toString().take(10)
         val effectiveScreenshot = paymentScreenshot ?: ""
         val effectiveOrderNumber = orderNumber ?: ""
@@ -48,14 +67,14 @@ class OrderRepositoryImpl : OrderRepository {
             it[OrdersTable.orderDate] = effectiveOrderDate
             it[OrdersTable.userId] = userId
             it[OrdersTable.productId] = productId
-            it[OrdersTable.productName] = pTitle
-            it[OrdersTable.productImage] = pImg
-            it[OrdersTable.productSourcePrice] = pSourcePrice
+            it[OrdersTable.productName] = finalProductName
+            it[OrdersTable.productImage] = finalProductImage
+            it[OrdersTable.productSourcePrice] = BigDecimal.valueOf(finalSourcePrice)
             it[OrdersTable.address] = address
             it[OrdersTable.note] = note
             it[OrdersTable.variationNote] = note
             it[OrdersTable.quantity] = quantity
-            it[OrdersTable.listingPrice] = BigDecimal.valueOf(effectiveListingPrice)
+            it[OrdersTable.listingPrice] = BigDecimal.valueOf(finalListingPrice)
             it[OrdersTable.paymentScreenshot] = effectiveScreenshot
             it[OrdersTable.paymentImageUrl] = effectiveScreenshot
             it[OrdersTable.trackId] = ""
@@ -223,10 +242,12 @@ class OrderRepositoryImpl : OrderRepository {
             .map { it[UsersTable.name] }
             .singleOrNull()
 
-        val productTitleFromDb = ProductsTable.selectAll()
-            .where { ProductsTable.id eq orderProductId }
-            .map { it[ProductsTable.title] }
-            .singleOrNull()
+        val productTitleFromDb = if (orderProductId != null) {
+            ProductsTable.selectAll()
+                .where { ProductsTable.id eq orderProductId }
+                .map { it[ProductsTable.title] }
+                .singleOrNull()
+        } else null
 
         val storedProductName = row[OrdersTable.productName]
         val effectiveProductName = if (storedProductName.isNotBlank()) storedProductName else (productTitleFromDb ?: "")

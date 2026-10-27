@@ -9,7 +9,7 @@ object OrdersTable : Table("orders") {
     val orderNumber = varchar("order_number", 100).default("")
     val orderDate = varchar("order_date", 50)
     val userId = reference("user_id", UsersTable.id, onDelete = ReferenceOption.CASCADE)
-    val productId = long("product_id")
+    val productId = long("product_id").nullable()
     val productName = varchar("product_name", 255).default("")
     val productImage = text("product_image").default("")
     val productSourcePrice = decimal("product_source_price", 10, 2).default(BigDecimal.ZERO)

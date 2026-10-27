@@ -95,10 +95,18 @@ class ProductRepositoryImpl : ProductRepository {
         getProductByIdInternal(productId)
     }
 
-    override suspend fun updateWarehouse(productId: Long, warehousePrice: Double, warehouseNote: String?): Product? = DatabaseFactory.dbQuery {
+    override suspend fun updateWarehouse(
+        productId: Long,
+        warehousePrice: Double,
+        warehouseNote: String?,
+        warehouseImageUrl: String?
+    ): Product? = DatabaseFactory.dbQuery {
         val updatedRows = ProductsTable.update({ ProductsTable.id eq productId }) {
             it[ProductsTable.warehousePrice] = BigDecimal.valueOf(warehousePrice)
             it[ProductsTable.warehouseNote] = warehouseNote
+            if (warehouseImageUrl != null) {
+                it[ProductsTable.warehouseImageUrl] = warehouseImageUrl
+            }
         }
 
         if (updatedRows > 0) getProductByIdInternal(productId) else null
@@ -174,6 +182,9 @@ class ProductRepositoryImpl : ProductRepository {
             .map { it.trim() }
             .filter { it.isNotEmpty() }
 
+        val storedWarehouseImageUrl = try { row[ProductsTable.warehouseImageUrl] } catch (_: Exception) { "" }
+        val effectiveWarehouseImageUrl = storedWarehouseImageUrl.ifEmpty { null }
+
         return Product(
             id = productId,
             userId = creatorId,
@@ -187,6 +198,8 @@ class ProductRepositoryImpl : ProductRepository {
             referencePrice = row[ProductsTable.referencePrice].toDouble(),
             warehousePrice = row[ProductsTable.warehousePrice].toDouble(),
             warehouseNote = row[ProductsTable.warehouseNote],
+            warehouseImageUrl = effectiveWarehouseImageUrl,
+            warehouseImage = effectiveWarehouseImageUrl,
             sharedUserIds = sharedUserIds,
             sharedUsernames = sharedUsernames,
             createdAt = row[ProductsTable.createdAt]

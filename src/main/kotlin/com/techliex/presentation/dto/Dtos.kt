@@ -88,9 +88,19 @@ data class UpdateProductSharesRequest(
 )
 
 @Serializable
+data class UpdateProductLinksRequest(
+    val sourceLink: String? = null,
+    val sourcePrice: Double? = null,
+    val referenceLink: String? = null,
+    val referencePrice: Double? = null
+)
+
+@Serializable
 data class UpdateWarehouseRequest(
     val warehousePrice: Double,
-    val warehouseNote: String? = null
+    val warehouseNote: String? = null,
+    val warehouseImageUrl: String? = null,
+    val warehouseImage: String? = null
 )
 
 @Serializable
@@ -107,6 +117,8 @@ data class ProductDto(
     val referencePrice: Double,
     val warehousePrice: Double,
     val warehouseNote: String?,
+    val warehouseImageUrl: String? = null,
+    val warehouseImage: String? = null,
     val sharedUserIds: List<Long> = emptyList(),
     val sharedUsernames: List<String> = emptyList(),
     val createdAt: String
@@ -125,23 +137,48 @@ fun Product.toDto(): ProductDto = ProductDto(
     referencePrice = referencePrice,
     warehousePrice = warehousePrice,
     warehouseNote = warehouseNote,
+    warehouseImageUrl = warehouseImageUrl ?: warehouseImage,
+    warehouseImage = warehouseImage ?: warehouseImageUrl,
     sharedUserIds = sharedUserIds,
     sharedUsernames = sharedUsernames,
     createdAt = createdAt
 )
 
 @Serializable
+data class CreateOrderItemRequest(
+    val productId: Long? = null,
+    val productName: String? = null,
+    val productTitle: String? = null,
+    val productImage: String? = null,
+    val productSourcePrice: Double? = null,
+    val quantity: Int = 1,
+    val note: String? = null,
+    val variationNote: String? = null,
+    val listingPrice: Double? = null
+)
+
+@Serializable
 data class CreateOrderRequest(
     val orderNumber: String = "",
     val orderDate: String? = null,
-    val productId: Long,
-    val address: String,
+    val address: String = "",
+    val paymentScreenshot: String? = null,
+    val paymentImageUrl: String? = null,
+
+    // Multiple order items support
+    val items: List<CreateOrderItemRequest> = emptyList(),
+    val orders: List<CreateOrderItemRequest> = emptyList(),
+
+    // Single order item fallback fields
+    val productId: Long? = null,
+    val productName: String? = null,
+    val productTitle: String? = null,
+    val productImage: String? = null,
+    val productSourcePrice: Double? = null,
     val note: String? = null,
     val variationNote: String? = null,
     val quantity: Int = 1,
-    val listingPrice: Double? = null,
-    val paymentScreenshot: String? = null,
-    val paymentImageUrl: String? = null
+    val listingPrice: Double? = null
 )
 
 @Serializable
@@ -197,7 +234,7 @@ data class OrderDto(
     val orderDate: String = "",
     val userId: Long,
     val userName: String? = null,
-    val productId: Long,
+    val productId: Long? = null,
     val productName: String = "",
     val productImage: String = "",
     val productSourcePrice: Double = 0.0,
