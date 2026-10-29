@@ -16,6 +16,7 @@ object ProductsTable : Table("products") {
     val referencePrice = decimal("reference_price", 10, 2)
     val warehousePrice = decimal("warehouse_price", 10, 2).default(BigDecimal.ZERO)
     val warehouseNote = text("warehouse_note").nullable()
+    val warehouseImageUrl = text("warehouse_image_url").default("")
     val sharedUserIds = text("shared_user_ids").default("")
     val sharedUsernames = text("shared_usernames").default("")
     val createdAt = varchar("created_at", 50)

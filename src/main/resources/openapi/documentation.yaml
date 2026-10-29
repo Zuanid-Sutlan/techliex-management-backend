@@ -271,6 +271,36 @@ components:
           type: string
           nullable: true
           example: Verified stock in warehouse A
+        warehouseImageUrl:
+          type: string
+          nullable: true
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+        warehouseImage:
+          type: string
+          nullable: true
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+
+    UpdateProductLinksRequest:
+      type: object
+      properties:
+        sourceLink:
+          type: string
+          nullable: true
+          example: https://supplier.com/item/1
+        sourcePrice:
+          type: number
+          format: double
+          nullable: true
+          example: 25.00
+        referenceLink:
+          type: string
+          nullable: true
+          example: https://amazon.com/item/1
+        referencePrice:
+          type: number
+          format: double
+          nullable: true
+          example: 55.00
 
     ProductDto:
       type: object
@@ -335,10 +365,47 @@ components:
           type: string
           example: "2025-01-01T00:00:00Z"
 
+    CreateOrderItemRequest:
+      type: object
+      properties:
+        productId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 10
+        productName:
+          type: string
+          nullable: true
+          example: Custom Keyboard
+        productImage:
+          type: string
+          nullable: true
+          example: https://example.com/custom.jpg
+        productSourcePrice:
+          type: number
+          format: double
+          nullable: true
+          example: 25.00
+        quantity:
+          type: integer
+          example: 2
+        note:
+          type: string
+          nullable: true
+          example: "Red switches variation"
+        variationNote:
+          type: string
+          nullable: true
+          example: "Red switches variation"
+        listingPrice:
+          type: number
+          format: double
+          nullable: true
+          example: 45.00
+
     CreateOrderRequest:
       type: object
       required:
-        - productId
         - address
       properties:
         orderNumber:
@@ -348,13 +415,43 @@ components:
         orderDate:
           type: string
           example: "15/01/2025"
-        productId:
-          type: integer
-          format: int64
-          example: 10
         address:
           type: string
           example: 123 Main St, New York, NY 10001
+        paymentScreenshot:
+          type: string
+          nullable: true
+          example: "data:image/png;base64,iVBORw0KGgo..."
+        paymentImageUrl:
+          type: string
+          nullable: true
+          example: "data:image/png;base64,iVBORw0KGgo..."
+        items:
+          type: array
+          description: Optional list of order items for multi-item order placement
+          items:
+            $ref: '#/components/schemas/CreateOrderItemRequest'
+        productId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 10
+        productName:
+          type: string
+          nullable: true
+          description: Manual product name if ordering without hunted product
+          example: Custom Mechanical Keyboard
+        productImage:
+          type: string
+          nullable: true
+          description: Manual product image URL
+          example: https://example.com/custom.jpg
+        productSourcePrice:
+          type: number
+          format: double
+          nullable: true
+          description: Manual product source price
+          example: 25.00
         note:
           type: string
           nullable: true
@@ -370,14 +467,6 @@ components:
           type: number
           format: double
           example: 55.00
-        paymentScreenshot:
-          type: string
-          description: Payment screenshot Base64 string format
-          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
-        paymentImageUrl:
-          type: string
-          description: Legacy payment image URL/Base64
-          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
 
     UpdateLogisticsRequest:
       type: object
@@ -487,6 +576,7 @@ components:
         productId:
           type: integer
           format: int64
+          nullable: true
           example: 10
         productName:
           type: string
@@ -1150,6 +1240,44 @@ paths:
                     $ref: '#/components/schemas/ProductDto'
         '403':
           description: Only Admin or product creator can update shares
+        '404':
+          description: Product not found
+
+  /api/v1/products/{id}/links:
+    patch:
+      tags:
+        - Products
+      summary: Update Product Source & Reference Links (Admin, Creator, or Shared Members)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductLinksRequest'
+      responses:
+        '200':
+          description: Product links updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductDto'
+        '403':
+          description: Access denied (Product not shared with you)
         '404':
           description: Product not found
 

@@ -136,6 +136,40 @@ fun Route.productRoutes(
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Product shares updated successfully", updatedProduct.toDto()))
             }
 
+            // Update source and reference links (Admin, Warehouse, Creator, or Shared Members)
+            patch("/{id}/links") {
+                val principal = call.getUserPrincipal()
+                val productId = call.parameters["id"]?.toLongOrNull()
+                    ?: return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid product ID"))
+
+                val existingProduct = getProductByIdUseCase(productId)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                if (principal.role != "Admin" && principal.role != "Warehouse") {
+                    val isOwner = existingProduct.userId == principal.id
+                    val isShared = principal.id in existingProduct.sharedUserIds || principal.username in existingProduct.sharedUsernames
+                    if (!isOwner && !isShared) {
+                        return@patch call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied: Product not shared with you"))
+                    }
+                }
+
+                val req = try {
+                    call.receive<UpdateProductLinksRequest>()
+                } catch (_: Exception) {
+                    return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
+                }
+
+                val updatedProduct = updateProductUseCase(
+                    productId = productId,
+                    sourceLink = req.sourceLink,
+                    sourcePrice = req.sourcePrice,
+                    referenceLink = req.referenceLink,
+                    referencePrice = req.referencePrice
+                ) ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Product links updated successfully", updatedProduct.toDto()))
+            }
+
             // Admin / Warehouse only: update warehouse price & note
             patch("/{id}/warehouse") {
                 val principal = call.getUserPrincipal()
@@ -152,8 +186,13 @@ fun Route.productRoutes(
                     return@patch call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Invalid payload"))
                 }
 
-                val updatedProduct = updateWarehouseUseCase(productId, req.warehousePrice, req.warehouseNote)
-                    ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
+                val effectiveWarehouseImage = req.warehouseImageUrl ?: req.warehouseImage
+                val updatedProduct = updateWarehouseUseCase(
+                    productId = productId,
+                    warehousePrice = req.warehousePrice,
+                    warehouseNote = req.warehouseNote,
+                    warehouseImageUrl = effectiveWarehouseImage
+                ) ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Product not found"))
 
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Warehouse details updated", updatedProduct.toDto()))
             }

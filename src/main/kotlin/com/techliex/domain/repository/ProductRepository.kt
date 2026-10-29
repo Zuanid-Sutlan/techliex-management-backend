@@ -29,7 +29,12 @@ interface ProductRepository {
         sharedUserIds: List<Long>? = null,
         shareWithUsernames: List<String>? = null
     ): Product?
-    suspend fun updateWarehouse(productId: Long, warehousePrice: Double, warehouseNote: String?): Product?
+    suspend fun updateWarehouse(
+        productId: Long,
+        warehousePrice: Double,
+        warehouseNote: String?,
+        warehouseImageUrl: String? = null
+    ): Product?
     suspend fun updateProductShares(
         productId: Long,
         sharedUserIds: List<Long> = emptyList(),
