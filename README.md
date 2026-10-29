@@ -495,4 +495,21 @@ GET /api/v1/health
   }
 }
 ```
+### .env sample
 
+```
+# postgresql://techliex:techliex@123@techliex-techliex-db-votos1:5432/techliex_db
+# Separate PostgreSQL Service in Dokploy
+# DB_JDBC_URL=jdbc:postgresql://techliex:techliex@123@techliex-techliex-db-votos1:5432/techliex_db
+# DB_USER=techliex
+# DB_PASSWORD=techliex@123
+# DB_DRIVER=org.postgresql.Driver
+
+# Alternative format supported automatically if Dokploy provides DATABASE_URL:
+DATABASE_URL=postgresql://techliex:techliex@123@techliex-techliex-db-votos1:5432/techliex_db
+
+# Production JWT & Domain Security
+JWT_SECRET=techliex-super-secret-jwt-key-2026!
+JWT_ISSUER=https://resolvax.io/
+JWT_AUDIENCE=https://resolvax.io/api/v1
+```
