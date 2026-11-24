@@ -282,13 +282,19 @@ fun Order.toDto(): OrderDto = OrderDto(
 data class DashboardStatsDto(
     val productCount: Long,
     val activeOrdersCount: Long,
-    val totalEarnings: Double
+    val totalEarnings: Double,
+    val pendingWarehouseCount: Long = 0,
+    val pendingTrackingCount: Long = 0,
+    val unreadSupportCount: Long = 0
 )
 
 fun DashboardStats.toDto(): DashboardStatsDto = DashboardStatsDto(
     productCount = productCount,
     activeOrdersCount = activeOrdersCount,
-    totalEarnings = totalEarnings
+    totalEarnings = totalEarnings,
+    pendingWarehouseCount = pendingWarehouseCount,
+    pendingTrackingCount = pendingTrackingCount,
+    unreadSupportCount = unreadSupportCount
 )
 
 @Serializable
@@ -296,6 +302,17 @@ data class VersionDto(
     val versionName: String,
     val versionCode: Int,
     val name: String
+)
+
+@Serializable
+data class StatusDto(
+    val id: Long,
+    val statusName: String
+)
+
+@Serializable
+data class CreateStatusRequest(
+    val statusName: String
 )
 
 fun AppVersion.toDto(): VersionDto = VersionDto(

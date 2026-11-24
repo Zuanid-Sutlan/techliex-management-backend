@@ -21,11 +21,45 @@ class App {
             this.logoutBtn.addEventListener('click', () => this.logout());
         }
 
+        // Setup Global Image Viewer
+        window.openImageViewer = (url) => {
+            const modal = document.getElementById('globalImageViewerModal');
+            const img = document.getElementById('globalImageViewerImg');
+            if (modal && img && url) {
+                img.src = url;
+                modal.classList.remove('hidden');
+            }
+        };
+
+        const closeViewer = document.getElementById('closeImageViewer');
+        const viewerModal = document.getElementById('globalImageViewerModal');
+        if (closeViewer && viewerModal) {
+            closeViewer.addEventListener('click', () => viewerModal.classList.add('hidden'));
+            viewerModal.addEventListener('click', (e) => {
+                if (e.target === viewerModal) viewerModal.classList.add('hidden');
+            });
+        }
+
         // Initial route handling
+        this.loadAppVersion();
         this.handleRoute();
     }
 
-    handleRoute() {
+    async loadAppVersion() {
+        try {
+            const res = await api.get('/version');
+            if (res.success && res.data) {
+                const vStr = `v${res.data.versionName} (${res.data.versionCode})`;
+                document.querySelectorAll('.app-version').forEach(el => {
+                    el.textContent = vStr;
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load app version", e);
+        }
+    }
+
+    async handleRoute() {
         let hash = window.location.hash.substring(1) || 'dashboard';
 
         // Simple Auth Guard
@@ -40,8 +74,52 @@ class App {
             return;
         }
 
+        if (isAuthenticated && !this.userProfileLoaded) {
+            await this.loadUserProfile();
+        }
+
+        // Role-based protection: non-admins cannot access members
+        const role = localStorage.getItem('current_role');
+        if (hash === 'members' && role !== 'Admin') {
+            window.location.hash = 'dashboard';
+            return;
+        }
+
         this.updateNavigation(hash);
         this.loadView(hash);
+    }
+
+    async loadUserProfile() {
+        try {
+            const res = await api.get('/auth/me');
+            if (res.success && res.data) {
+                const u = res.data;
+                this.userProfileLoaded = true;
+                localStorage.setItem('current_username', u.username);
+                localStorage.setItem('current_user_id', u.id);
+                localStorage.setItem('current_role', u.role);
+
+                const profileBlock = document.getElementById('currentUserProfile');
+                if (profileBlock) {
+                    profileBlock.style.display = 'flex';
+                    document.getElementById('currentUserName').textContent = u.name;
+                    document.getElementById('currentUserRole').textContent = u.role;
+                    document.getElementById('currentUserInitials').textContent = u.name.charAt(0).toUpperCase();
+                }
+
+                // Show/hide admin-only elements in sidebar
+                const adminElements = document.querySelectorAll('.admin-only');
+                adminElements.forEach(el => {
+                    if (u.role === 'Admin') {
+                        el.style.display = 'flex';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load user profile", e);
+        }
     }
 
     updateNavigation(currentRoute) {
@@ -75,6 +153,7 @@ class App {
 
             // Load specific script for the view if exists
             this.loadViewScript(route);
+            this.loadAppVersion();
 
         } catch (error) {
             console.error('Error loading view:', error);
@@ -92,13 +171,24 @@ class App {
         // We check if the file exists dynamically or simply try to load it
         const script = document.createElement('script');
         script.id = 'view-script';
-        script.src = `/js/modules/${route}.js`;
+        // Add cache buster to ensure latest script is loaded in development
+        script.src = `/js/modules/${route}.js?t=${new Date().getTime()}`;
         script.onerror = () => { console.log(`No specific JS for ${route}`); };
         document.body.appendChild(script);
     }
 
     logout() {
         localStorage.removeItem('jwt_token');
+        localStorage.removeItem('current_username');
+        localStorage.removeItem('current_user_id');
+        localStorage.removeItem('current_role');
+        this.userProfileLoaded = false;
+
+        const profileBlock = document.getElementById('currentUserProfile');
+        if (profileBlock) {
+            profileBlock.style.display = 'none';
+        }
+
         window.location.hash = 'login';
     }
 }

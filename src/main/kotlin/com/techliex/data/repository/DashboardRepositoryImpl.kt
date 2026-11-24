@@ -3,6 +3,7 @@ package com.techliex.data.repository
 import com.techliex.data.db.*
 import com.techliex.data.db.table.OrdersTable
 import com.techliex.data.db.table.ProductsTable
+import com.techliex.data.db.table.RefundMessagesTable
 import com.techliex.domain.model.DashboardStats
 import com.techliex.domain.repository.DashboardRepository
 import org.jetbrains.exposed.sql.*
@@ -12,7 +13,11 @@ class DashboardRepositoryImpl : DashboardRepository {
     override suspend fun getStatsForUser(userId: Long, userRole: String): DashboardStats = DatabaseFactory.dbQuery {
         if (userRole == "Admin" || userRole == "Warehouse") {
             val totalProducts = ProductsTable.selectAll().count()
+            val pendingWarehouse = ProductsTable.selectAll().where { ProductsTable.warehousePrice eq java.math.BigDecimal.ZERO }.count()
             val activeOrders = OrdersTable.selectAll().where { OrdersTable.status neq "Completed" }.count()
+            val pendingTracking = OrdersTable.selectAll().where { (OrdersTable.trackId eq "") and (OrdersTable.status neq "Completed") }.count()
+            val unreadSupport = OrdersTable.innerJoin(RefundMessagesTable, { OrdersTable.id }, { RefundMessagesTable.orderId })
+                .selectAll().where { OrdersTable.status eq "Refund Requested" }.withDistinct().count()
             val totalEarnings = OrdersTable.selectAll()
                 .where { OrdersTable.status eq "Completed" }
                 .sumOf { row ->
@@ -24,7 +29,10 @@ class DashboardRepositoryImpl : DashboardRepository {
             DashboardStats(
                 productCount = totalProducts,
                 activeOrdersCount = activeOrders,
-                totalEarnings = totalEarnings
+                totalEarnings = totalEarnings,
+                pendingWarehouseCount = pendingWarehouse,
+                pendingTrackingCount = pendingTracking,
+                unreadSupportCount = unreadSupport
             )
         } else {
             val totalProducts = ProductsTable.selectAll()
@@ -40,6 +48,13 @@ class DashboardRepositoryImpl : DashboardRepository {
                 .where { (OrdersTable.userId eq userId) and (OrdersTable.status neq "Completed") }
                 .count()
 
+            val pendingTracking = OrdersTable.selectAll()
+                .where { (OrdersTable.userId eq userId) and (OrdersTable.trackId eq "") and (OrdersTable.status neq "Completed") }
+                .count()
+
+            val unreadSupport = OrdersTable.innerJoin(RefundMessagesTable, { OrdersTable.id }, { RefundMessagesTable.orderId })
+                .selectAll().where { (OrdersTable.userId eq userId) and (OrdersTable.status eq "Refund Requested") }.withDistinct().count()
+
             val totalEarnings = OrdersTable.selectAll()
                 .where { (OrdersTable.userId eq userId) and (OrdersTable.status eq "Completed") }
                 .sumOf { row ->
@@ -51,7 +66,9 @@ class DashboardRepositoryImpl : DashboardRepository {
             DashboardStats(
                 productCount = totalProducts,
                 activeOrdersCount = activeOrders,
-                totalEarnings = totalEarnings
+                totalEarnings = totalEarnings,
+                pendingTrackingCount = pendingTracking,
+                unreadSupportCount = unreadSupport
             )
         }
     }

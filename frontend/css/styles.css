@@ -1,15 +1,33 @@
-/* Base CSS Variables for Scalable Theming */
+/* Techliex / Resolvax Brand Identity System Color Palette */
 :root {
-    --primary-color: #4f46e5;
-    --primary-hover: #4338ca;
-    --background-color: #f3f4f6;
-    --surface-color: #ffffff;
-    --text-primary: #111827;
-    --text-secondary: #6b7280;
+    --primary-color: #8B5CF6; /* Resolvax Primary Violet */
+    --primary-hover: #7C3AED; /* Resolvax Violet (Secondary Accent) */
+    --background-color: #F9FAFB; /* Resolvax OffWhite */
+    --surface-color: #FFFFFF; /* Resolvax PureWhite */
+    --text-primary: #0D0D0D; /* Resolvax NearBlack */
+    --text-secondary: #6B7280; /* Resolvax SlateGray */
     --border-color: #e5e7eb;
-    --danger-color: #ef4444;
-    --success-color: #10b981;
-    --sidebar-width: 250px;
+    --danger-color: #EF4444; /* Resolvax Error */
+    --success-color: #10B981; /* Resolvax Success */
+    --warning-color: #F59E0B; /* Resolvax Warning */
+    --sidebar-width: 260px;
+
+    /* Dark Theme Variables */
+    --dark-bg: #1A0B2E; /* ResolvaxDeepPurple */
+    --dark-surface: #23123D; /* ResolvaxDarkSurface */
+    --dark-surface-variant: #2C164B; /* ResolvaxDarkSurfaceVariant */
+    --dark-card: #1F0E36; /* ResolvaxDarkCard */
+    --dark-text-primary: #F9FAFB;
+    --dark-text-secondary: #C4B5FD; /* ResolvaxSoftLilac */
+}
+
+/* Dark Theme Support via Data Attribute */
+[data-theme="dark"] {
+    --background-color: var(--dark-bg);
+    --surface-color: var(--dark-surface);
+    --text-primary: var(--dark-text-primary);
+    --text-secondary: var(--dark-text-secondary);
+    --border-color: var(--dark-surface-variant);
 }
 
 /* Reset & Global */
@@ -51,9 +69,40 @@ body {
 .brand {
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-color);
-    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    object-fit: cover;
+}
+
+.brand-text-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-title {
+    font-size: 20px;
     font-weight: bold;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+
+.brand-title-accent {
     color: var(--primary-color);
+}
+
+.brand-tagline {
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1.2px;
+    color: var(--text-secondary);
 }
 
 .nav-menu {
@@ -80,6 +129,52 @@ body {
 .sidebar-footer {
     padding: 1.5rem;
     border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Developer Signature Badge */
+.developer-signature {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.developer-signature:hover {
+    background-color: rgba(139, 92, 246, 0.05); /* Slight primary tint */
+}
+
+.signature-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    object-fit: cover;
+}
+
+.signature-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.2;
+}
+
+.signature-accent {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.signature-tagline {
+    font-size: 7.5px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: var(--text-secondary);
+    opacity: 0.7;
 }
 
 /* Main Content */
@@ -159,4 +254,82 @@ body {
 /* Utilities */
 .hidden {
     display: none !important;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--surface-color);
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+}
+
+/* Image Dropzone Component */
+.dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+    background: var(--background-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--primary-color);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.dropzone-preview-container {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+}
+
+.dropzone-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
 }

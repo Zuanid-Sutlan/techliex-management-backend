@@ -12,18 +12,42 @@
     <div id="app" class="app-container">
         <!-- Sidebar Navigation (Hidden on Login) -->
         <aside id="sidebar" class="sidebar hidden">
+            <!-- Techliex Brand Header -->
             <div class="brand">
-                <h2>Techliex</h2>
+                <img src="/assets/images/ic_techliex_logo.jpeg" alt="Techliex Logo" class="brand-logo">
+                <div class="brand-text-container">
+                    <span class="brand-title">Techliex<span class="brand-title-accent"> AI</span></span>
+                    <span class="brand-tagline">MANAGEMENT SUITE</span>
+                </div>
             </div>
             <nav class="nav-menu">
                 <a href="#dashboard" class="nav-link" data-route="dashboard"><i class="fas fa-home"></i> Dashboard</a>
                 <a href="#orders" class="nav-link" data-route="orders"><i class="fas fa-shopping-cart"></i> Orders</a>
                 <a href="#products" class="nav-link" data-route="products"><i class="fas fa-box-open"></i> Products</a>
-                <a href="#members" class="nav-link" data-route="members"><i class="fas fa-users"></i> Members</a>
+                <a href="#members" class="nav-link admin-only" data-route="members"><i class="fas fa-users"></i> Members</a>
                 <a href="#settings" class="nav-link" data-route="settings"><i class="fas fa-cog"></i> Settings</a>
             </nav>
             <div class="sidebar-footer">
-                <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                <!-- Logged-in User Info -->
+                <div id="currentUserProfile" style="display: none; align-items: center; gap: 10px; padding: 10px; background-color: var(--background-color); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <div id="currentUserInitials" style="width: 36px; height: 36px; border-radius: 10px; background-color: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">?</div>
+                    <div style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+                        <span id="currentUserName" style="font-size: 0.875rem; font-weight: bold; color: var(--text-primary); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Loading...</span>
+                        <span id="currentUserRole" style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color);">...</span>
+                    </div>
+                </div>
+
+                <!-- Resolvax Developer Signature -->
+                <div class="developer-signature" onclick="window.open('https://resolvax.com', '_blank')">
+                    <img src="/assets/images/ic_resolvax_logo.png" alt="Resolvax" class="signature-logo">
+                    <div style="display: flex; flex-direction: column;">
+                        <span class="signature-text">Developed by <span class="signature-accent">resolvax.com</span></span>
+                        <span class="signature-tagline">CONNECT • RESOLVE • GROW</span>
+                    </div>
+                </div>
+
+                <div class="app-version" style="font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-bottom: 0.25rem;">Loading Version...</div>
+                <button id="logoutBtn" class="btn btn-outline" style="width: 100%;"><i class="fas fa-sign-out-alt"></i> Logout</button>
             </div>
         </aside>
 
@@ -33,8 +57,19 @@
         </main>
     </div>
 
+    <!-- Global Full-Size Image Viewer Modal -->
+    <div id="globalImageViewerModal" class="modal-overlay hidden" style="background: rgba(0,0,0,0.85); z-index: 2000;">
+        <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; justify-content: center; align-items: center;">
+            <button type="button" id="closeImageViewer" style="position: absolute; top: -45px; right: 0; background: none; border: none; color: white; font-size: 2.5rem; cursor: pointer; z-index: 2001;">&times;</button>
+            <img id="globalImageViewerImg" src="" alt="Full Size" style="max-width: 90vw; max-height: 85vh; border-radius: 8px; object-fit: contain; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
     <!-- Core Scripts -->
-    <script src="/js/api.js"></script>
-    <script src="/js/app.js"></script>
+    <script>
+        const v = new Date().getTime();
+        document.write(`<script src="/js/api.js?v=${v}"><\/script>`);
+        document.write(`<script src="/js/app.js?v=${v}"><\/script>`);
+    </script>
 </body>
 </html>

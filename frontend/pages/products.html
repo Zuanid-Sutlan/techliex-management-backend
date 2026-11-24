@@ -3,7 +3,22 @@
         <h1>Products</h1>
         <p style="color: var(--text-secondary);">Manage product catalog and pricing</p>
     </div>
-    <button class="btn btn-primary" onclick="alert('Open Add Product Modal')"><i class="fas fa-plus"></i> Add Product</button>
+    <button class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Product</button>
+</div>
+
+<!-- Search & Creator Filter Bar -->
+<div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <input type="text" id="productSearchInput" class="form-control" placeholder="Search by product title or description..." style="flex: 2; min-width: 220px;">
+    <select id="productUserFilter" class="form-control" style="flex: 1; min-width: 160px; display: none;">
+        <option value="all">All Creators</option>
+        <!-- Populated via JS -->
+    </select>
+</div>
+
+<!-- Filter Tabs -->
+<div id="productTabs" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; overflow-x: auto;">
+    <span class="product-tab active-tab" data-filter="all" style="cursor: pointer; font-weight: bold; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 0.25rem;">All Products</span>
+    <span class="product-tab" data-filter="needs_warehouse" style="cursor: pointer; color: var(--text-secondary); padding-bottom: 0.25rem;">Needs Warehouse Info</span>
 </div>
 
 <div class="card">
@@ -22,4 +37,75 @@
             </tr>
         </tbody>
     </table>
+</div>
+
+<!-- Add Product Modal -->
+<div id="addProductModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Product</h2>
+            <button class="modal-close" id="closeAddProductModal">&times;</button>
+        </div>
+        <form id="addProductForm">
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="prodTitle" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="prodDesc" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Product Image (Drag & Drop or Browse)</label>
+                <div id="productDropzone" class="dropzone">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Drag & drop an image here, or <span style="color: var(--primary-color); font-weight: 500;">browse</span></p>
+                    <input type="file" id="prodImgFile" accept="image/*" style="display: none;">
+                </div>
+                <div id="prodImgPreviewContainer" class="dropzone-preview-container hidden">
+                    <img id="prodImgPreview" class="dropzone-preview" src="" alt="Preview">
+                    <span id="prodImgFileName" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                    <button type="button" id="removeProdImg" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger-color);">Remove</button>
+                </div>
+                <input type="hidden" id="prodImgUrl" required>
+            </div>
+            <div class="form-group">
+                <label>Source Link</label>
+                <input type="url" id="prodSourceLink" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Source Price</label>
+                <input type="number" step="0.01" id="prodSourcePrice" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Reference Link</label>
+                <input type="url" id="prodRefLink" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Reference Price</label>
+                <input type="number" step="0.01" id="prodRefPrice" class="form-control" required>
+            </div>
+            <div id="productError" style="color: var(--danger-color); margin-bottom: 1rem; display: none;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn btn-outline" id="cancelAddProduct">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Product Details & Evaluation Modal -->
+<div id="productDetailsModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2 id="detailProductTitle">Product Details</h2>
+            <button class="modal-close" id="closeProductDetailsModal">&times;</button>
+        </div>
+        <div id="productDetailsBody" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Content populated via JS -->
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <button type="button" class="btn btn-outline" id="closeDetailsBtn">Close</button>
+        </div>
+    </div>
 </div>

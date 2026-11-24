@@ -98,6 +98,10 @@ fun Route.userRoutes(
                 val username = call.parameters["username"]
                     ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Username parameter missing"))
 
+                if (username == principal.username) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Cannot deactivate your own account"))
+                }
+
                 val success = deactivateUserUseCase(username)
                 if (success) {
                     call.respond(HttpStatusCode.OK, ApiResponse<Unit>(true, "User deactivated successfully"))
@@ -115,6 +119,10 @@ fun Route.userRoutes(
 
                 val username = call.parameters["username"]
                     ?: return@delete call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(false, "Username parameter missing"))
+
+                if (username == principal.username) {
+                    return@delete call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Cannot permanently delete your own account"))
+                }
 
                 val success = deleteUserPermanentlyUseCase(username)
                 if (success) {
