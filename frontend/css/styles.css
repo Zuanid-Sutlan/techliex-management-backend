@@ -333,3 +333,32 @@ body {
     object-fit: cover;
     border: 1px solid var(--border-color);
 }
+
+/* Global Smooth Loader Bar */
+#globalLoader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 3px;
+    background: transparent;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+#globalLoader.loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    background: var(--primary-color);
+    animation: loadingBar 0.8s infinite linear;
+}
+
+@keyframes loadingBar {
+    0% { left: -50%; width: 50%; }
+    50% { left: 25%; width: 75%; }
+    100% { left: 100%; width: 50%; }
+}
