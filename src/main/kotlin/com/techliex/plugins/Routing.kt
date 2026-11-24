@@ -9,9 +9,11 @@ import com.techliex.domain.usecase.system.GetAppVersionUseCase
 import com.techliex.domain.usecase.user.*
 import com.techliex.presentation.routes.*
 import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.plugins.swagger.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import java.io.File
 
 fun Application.configureRouting() {
     // Instantiate Repositories (Data Layer)
@@ -57,8 +59,9 @@ fun Application.configureRouting() {
     val getAppVersionUseCase = GetAppVersionUseCase()
 
     routing {
-        get("/") {
-            call.respondText("Techliex Management API Service is running!")
+        // Serve static files from the 'frontend' directory
+        staticFiles("/", File("frontend")) {
+            default("index.html")
         }
 
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")

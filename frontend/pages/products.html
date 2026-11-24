@@ -1,0 +1,25 @@
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1>Products</h1>
+        <p style="color: var(--text-secondary);">Manage product catalog and pricing</p>
+    </div>
+    <button class="btn btn-primary" onclick="alert('Open Add Product Modal')"><i class="fas fa-plus"></i> Add Product</button>
+</div>
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                <th style="padding: 1rem 0;">ID</th>
+                <th style="padding: 1rem 0;">Name</th>
+                <th style="padding: 1rem 0;">Source Price</th>
+                <th style="padding: 1rem 0;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="productsTableBody">
+            <tr>
+                <td colspan="4" style="padding: 1rem 0; text-align: center; color: var(--text-secondary);">Loading products...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

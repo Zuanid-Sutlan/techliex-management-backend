@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Techliex Management Suite</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Sidebar Navigation (Hidden on Login) -->
+        <aside id="sidebar" class="sidebar hidden">
+            <div class="brand">
+                <h2>Techliex</h2>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-link" data-route="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="#orders" class="nav-link" data-route="orders"><i class="fas fa-shopping-cart"></i> Orders</a>
+                <a href="#products" class="nav-link" data-route="products"><i class="fas fa-box-open"></i> Products</a>
+                <a href="#members" class="nav-link" data-route="members"><i class="fas fa-users"></i> Members</a>
+                <a href="#settings" class="nav-link" data-route="settings"><i class="fas fa-cog"></i> Settings</a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="main-content">
+            <!-- Dynamic views will be loaded here -->
+        </main>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

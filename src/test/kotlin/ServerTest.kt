@@ -53,7 +53,7 @@ class ServerTest {
         // 1. Root Endpoint
         val rootResponse = client.get("/")
         assertEquals(HttpStatusCode.OK, rootResponse.status)
-        assertTrue(rootResponse.bodyAsText().contains("Techliex Management API Service"))
+        assertTrue(rootResponse.bodyAsText().contains("Techliex Management Suite"))
 
         // 2. Health Check API Test (/health and /api/v1/health)
         val healthResponse = client.get("/health")
