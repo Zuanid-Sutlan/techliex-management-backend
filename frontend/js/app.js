@@ -41,7 +41,22 @@ class App {
         }
 
         // Initial route handling
+        this.loadAppVersion();
         this.handleRoute();
+    }
+
+    async loadAppVersion() {
+        try {
+            const res = await api.get('/version');
+            if (res.success && res.data) {
+                const vStr = `v${res.data.versionName} (${res.data.versionCode})`;
+                document.querySelectorAll('.app-version').forEach(el => {
+                    el.textContent = vStr;
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load app version", e);
+        }
     }
 
     async handleRoute() {
@@ -138,6 +153,7 @@ class App {
 
             // Load specific script for the view if exists
             this.loadViewScript(route);
+            this.loadAppVersion();
 
         } catch (error) {
             console.error('Error loading view:', error);
