@@ -3,7 +3,7 @@
         <h1>Orders</h1>
         <p style="color: var(--text-secondary);">Manage and track customer orders</p>
     </div>
-    <button class="btn btn-primary"><i class="fas fa-plus"></i> New Order</button>
+    <button class="btn btn-primary" id="addOrderBtn"><i class="fas fa-plus"></i> New Order</button>
 </div>
 
 <!-- Tabs Simulation -->
@@ -13,9 +13,60 @@
     <span style="cursor: pointer; color: var(--text-secondary);">Completed</span>
 </div>
 
-<div class="card">
+<div class="card" id="ordersContainer">
     <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
         <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
         <p>No orders found or loading...</p>
+    </div>
+</div>
+
+<!-- Add Order Modal -->
+<div id="addOrderModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Order</h2>
+            <button class="modal-close" id="closeAddOrderModal">&times;</button>
+        </div>
+        <form id="addOrderForm">
+            <div class="form-group">
+                <label>Order Number</label>
+                <input type="text" id="orderNumber" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Order Date</label>
+                <input type="date" id="orderDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="orderProductName" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Delivery Address</label>
+                <textarea id="orderAddress" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Quantity</label>
+                <input type="number" id="orderQuantity" class="form-control" value="1" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>Payment Proof Screenshot (Drag & Drop or Browse)</label>
+                <div id="orderDropzone" class="dropzone">
+                    <i class="fas fa-receipt" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Drag & drop screenshot here, or <span style="color: var(--primary-color); font-weight: 500;">browse</span></p>
+                    <input type="file" id="orderImgFile" accept="image/*" style="display: none;">
+                </div>
+                <div id="orderImgPreviewContainer" class="dropzone-preview-container hidden">
+                    <img id="orderImgPreview" class="dropzone-preview" src="" alt="Preview">
+                    <span id="orderImgFileName" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                    <button type="button" id="removeOrderImg" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger-color);">Remove</button>
+                </div>
+                <input type="hidden" id="orderPaymentScreenshot">
+            </div>
+            <div id="orderError" style="color: var(--danger-color); margin-bottom: 1rem; display: none;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn btn-outline" id="cancelAddOrder">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Order</button>
+            </div>
+        </form>
     </div>
 </div>

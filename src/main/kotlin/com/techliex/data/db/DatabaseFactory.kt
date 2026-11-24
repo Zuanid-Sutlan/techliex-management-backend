@@ -56,7 +56,7 @@ object DatabaseFactory {
             activeDataSource = dataSource
             currentDbType = "PostgreSQL"
 
-//            initSchemaAndSeed()
+            initSchemaAndSeed()
             println("✅ Successfully connected to PostgreSQL database ($jdbcUrl)!")
         } catch (e: Exception) {
             println("⚠️ Primary PostgreSQL connection failed (${e.message}). Initializing persistent local H2 database on disk...")
@@ -73,7 +73,7 @@ object DatabaseFactory {
                 activeDataSource = h2DataSource
                 currentDbType = "H2 File-based Fallback"
 
-//                initSchemaAndSeed()
+                initSchemaAndSeed()
                 println("✅ Persistent file-based database successfully loaded at ./data/techliex_db.mv.db!")
             } catch (h2Ex: Exception) {
                 currentDbType = "Disconnected"
@@ -84,29 +84,18 @@ object DatabaseFactory {
 
     private fun initSchemaAndSeed() {
         transaction {
-            // Ensure newly added columns exist in existing persistent tables
-            try {
-                exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50) DEFAULT '';")
-            } catch (e: Exception) {
-                println("Notice on orders table alter: ${e.message}")
-            }
-            try {
-                exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_image_url TEXT DEFAULT '';")
-            } catch (e: Exception) {
-                println("Notice on products table alter: ${e.message}")
-            }
-
+            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
+            
             // Clean up any orphaned records that violate foreign key integrity
             try {
                 exec("DELETE FROM refund_messages WHERE order_id NOT IN (SELECT id FROM orders) OR sender_id NOT IN (SELECT id FROM users);")
                 exec("DELETE FROM orders WHERE user_id NOT IN (SELECT id FROM users);")
                 exec("DELETE FROM products WHERE user_id NOT IN (SELECT id FROM users);")
-            } catch (_: Exception) {
-                // Table might not exist yet on fresh setup
+            } catch (e: Exception) {
+                println("Notice on delete orphaned records: ${e.message}")
             }
-
-            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
             seedAdminUser()
+            seedSampleData()
         }
     }
 
@@ -140,7 +129,7 @@ object DatabaseFactory {
         val rawUrl = System.getenv("DATABASE_URL")
             ?: System.getenv("DB_JDBC_URL")
             ?: config.propertyOrNull("db.jdbcUrl")?.getString()
-            ?: "jdbc:postgresql://localhost:5432/techliex_db"
+            ?: "jdbc:postgresql://localhost:5433/techliex_db"
 
         var user = System.getenv("DB_USER")
             ?: config.propertyOrNull("db.user")?.getString()
@@ -241,6 +230,58 @@ object DatabaseFactory {
             UsersTable.update({ UsersTable.username eq "umair" }) {
                 it[passwordHash] = adminPasswordHash
                 it[isActive] = true
+            }
+        }
+    }
+
+    private fun seedSampleData() {
+        val userCount = UsersTable.selectAll().count()
+        if (userCount <= 1L) {
+            val memberHash = BCrypt.withDefaults().hashToString(12, "member123".toCharArray())
+            val memberId = UsersTable.insert {
+                it[username] = "member"
+                it[passwordHash] = memberHash
+                it[name] = "Test Member"
+                it[role] = "Member"
+                it[isActive] = true
+                it[createdAt] = Instant.now().toString()
+            } get UsersTable.id
+            
+            val whHash = BCrypt.withDefaults().hashToString(12, "warehouse123".toCharArray())
+            UsersTable.insert {
+                it[username] = "warehouse"
+                it[passwordHash] = whHash
+                it[name] = "Warehouse Manager"
+                it[role] = "Warehouse"
+                it[isActive] = true
+                it[createdAt] = Instant.now().toString()
+            }
+
+            ProductsTable.insert {
+                it[userId] = memberId
+                it[title] = "Sample Wireless Mouse"
+                it[description] = "Ergonomic 2.4G Wireless Mouse"
+                it[productImageUrl] = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500"
+                it[sourceLink] = "https://example.com/source"
+                it[sourcePrice] = java.math.BigDecimal("5.0")
+                it[referenceLink] = "https://example.com/ref"
+                it[referencePrice] = java.math.BigDecimal("15.0")
+                it[createdAt] = Instant.now().toString()
+            }
+
+            OrdersTable.insert {
+                it[userId] = memberId
+                it[orderNumber] = "ORD-0001"
+                it[orderDate] = Instant.now().toString()
+                it[productName] = "Sample Wireless Mouse"
+                it[productImage] = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500"
+                it[address] = "123 Test Street, NY"
+                it[quantity] = 2
+                it[listingPrice] = java.math.BigDecimal("25.0")
+                it[note] = "Please pack well"
+                it[status] = "Active"
+                it[createdAt] = Instant.now().toString()
+                it[updatedAt] = Instant.now().toString()
             }
         }
     }

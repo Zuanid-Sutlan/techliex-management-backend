@@ -3,7 +3,7 @@
         <h1>Members</h1>
         <p style="color: var(--text-secondary);">Manage team roles and access</p>
     </div>
-    <button class="btn btn-primary"><i class="fas fa-user-plus"></i> Add Member</button>
+    <button class="btn btn-primary" id="addMemberBtn"><i class="fas fa-user-plus"></i> Add Member</button>
 </div>
 
 <div class="card">
@@ -26,4 +26,92 @@
             </tr>
         </tbody>
     </table>
+</div>
+
+<!-- Add Member Modal -->
+<div id="addMemberModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Member</h2>
+            <button class="modal-close" id="closeAddMemberModal">&times;</button>
+        </div>
+        <form id="addMemberForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="memberUsername" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="memberName" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="memberPassword" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select id="memberRole" class="form-control" required>
+                    <option value="Member">Member</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+            <div id="memberError" style="color: var(--danger-color); margin-bottom: 1rem; display: none;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn btn-outline" id="cancelAddMember">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Member Modal -->
+<div id="viewMemberModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>View Member</h2>
+            <button class="modal-close" id="closeViewMemberModal">&times;</button>
+        </div>
+        <div id="viewMemberDetails">
+            <!-- Populated via JS -->
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+            <button type="button" class="btn btn-outline" id="closeViewMemberBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Member Modal -->
+<div id="editMemberModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Member Settings</h2>
+            <button class="modal-close" id="closeEditMemberModal">&times;</button>
+        </div>
+        <form id="editMemberForm">
+            <input type="hidden" id="editMemberUsername">
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label>Account Status</label>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span id="currentStatusBadge" style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;"></span>
+                    <button type="button" id="toggleStatusBtn" class="btn btn-outline btn-sm">Toggle Status</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <label style="font-weight: bold; color: var(--text-primary);">Reset Password</label>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Leave blank if you do not wish to change the password.</p>
+                <input type="password" id="editMemberNewPassword" class="form-control" placeholder="New Password">
+            </div>
+
+            <div id="editMemberError" style="color: var(--danger-color); margin-bottom: 1rem; display: none;"></div>
+            <div id="editMemberSuccess" style="color: var(--success-color); margin-bottom: 1rem; display: none;"></div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" id="cancelEditMember">Done</button>
+                <button type="submit" class="btn btn-primary">Update Password</button>
+            </div>
+        </form>
+    </div>
 </div>

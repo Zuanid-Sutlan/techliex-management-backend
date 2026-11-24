@@ -12,6 +12,7 @@ class DashboardRepositoryImpl : DashboardRepository {
     override suspend fun getStatsForUser(userId: Long, userRole: String): DashboardStats = DatabaseFactory.dbQuery {
         if (userRole == "Admin" || userRole == "Warehouse") {
             val totalProducts = ProductsTable.selectAll().count()
+            val pendingWarehouse = ProductsTable.selectAll().where { ProductsTable.warehousePrice eq java.math.BigDecimal.ZERO }.count()
             val activeOrders = OrdersTable.selectAll().where { OrdersTable.status neq "Completed" }.count()
             val totalEarnings = OrdersTable.selectAll()
                 .where { OrdersTable.status eq "Completed" }
@@ -24,7 +25,8 @@ class DashboardRepositoryImpl : DashboardRepository {
             DashboardStats(
                 productCount = totalProducts,
                 activeOrdersCount = activeOrders,
-                totalEarnings = totalEarnings
+                totalEarnings = totalEarnings,
+                pendingWarehouseCount = pendingWarehouse
             )
         } else {
             val totalProducts = ProductsTable.selectAll()

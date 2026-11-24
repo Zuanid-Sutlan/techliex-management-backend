@@ -14,12 +14,14 @@
                 const response = await api.post('/auth/login', { username, password });
 
                 // Save token
-                if (response.token) {
-                    localStorage.setItem('jwt_token', response.token);
+                if (response.success && response.data && response.data.token) {
+                    localStorage.setItem('jwt_token', response.data.token);
                     // Remember username
                     localStorage.setItem('last_username', username);
                     // Redirect to dashboard
                     window.location.hash = 'dashboard';
+                } else {
+                    throw new Error(response.message || 'Login failed.');
                 }
             } catch (error) {
                 errorDiv.textContent = error.message || 'Login failed. Please check your credentials.';

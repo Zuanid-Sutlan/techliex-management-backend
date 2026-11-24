@@ -282,13 +282,15 @@ fun Order.toDto(): OrderDto = OrderDto(
 data class DashboardStatsDto(
     val productCount: Long,
     val activeOrdersCount: Long,
-    val totalEarnings: Double
+    val totalEarnings: Double,
+    val pendingWarehouseCount: Long = 0
 )
 
 fun DashboardStats.toDto(): DashboardStatsDto = DashboardStatsDto(
     productCount = productCount,
     activeOrdersCount = activeOrdersCount,
-    totalEarnings = totalEarnings
+    totalEarnings = totalEarnings,
+    pendingWarehouseCount = pendingWarehouseCount
 )
 
 @Serializable
