@@ -1,6 +1,7 @@
 package com.techliex.data.db
 
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.techliex.data.db.table.OrderStatusesTable
 import com.techliex.data.db.table.OrdersTable
 import com.techliex.data.db.table.ProductsTable
 import com.techliex.data.db.table.RefundMessagesTable
@@ -84,7 +85,7 @@ object DatabaseFactory {
 
     private fun initSchemaAndSeed() {
         transaction {
-            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable)
+            SchemaUtils.createMissingTablesAndColumns(UsersTable, ProductsTable, OrdersTable, RefundMessagesTable, OrderStatusesTable)
             
             // Clean up any orphaned records that violate foreign key integrity
             try {
@@ -95,7 +96,20 @@ object DatabaseFactory {
                 println("Notice on delete orphaned records: ${e.message}")
             }
             seedAdminUser()
+            seedDefaultStatuses()
             seedSampleData()
+        }
+    }
+
+    private fun seedDefaultStatuses() {
+        val defaults = listOf("Active", "Needs Tracking", "Shipped", "Completed", "Processing", "On Hold", "Cancelled")
+        for (st in defaults) {
+            val exists = OrderStatusesTable.selectAll().where { OrderStatusesTable.statusName eq st }.count()
+            if (exists == 0L) {
+                OrderStatusesTable.insert {
+                    it[statusName] = st
+                }
+            }
         }
     }
 

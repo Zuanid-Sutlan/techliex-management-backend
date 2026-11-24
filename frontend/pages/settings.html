@@ -24,3 +24,18 @@
     <button class="btn btn-primary" id="saveSettingsBtn" style="margin-top: 1.5rem;">Save Changes</button>
     <div id="settingsMessage" style="margin-top: 1rem; color: var(--success-color); display: none;">Settings saved successfully!</div>
 </div>
+
+<!-- Admin Only: Custom Order Statuses -->
+<div class="card admin-only" id="orderStatusesCard" style="max-width: 600px; margin-top: 2rem; display: none;">
+    <h3 style="margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">Manage Order Statuses</h3>
+
+    <div style="margin-bottom: 1rem;">
+        <div id="statusList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+            <!-- Populated via JS -->
+        </div>
+        <form id="addStatusForm" style="display: flex; gap: 0.5rem;">
+            <input type="text" id="newStatusName" class="form-control" placeholder="New Status Name (e.g. Processing)" required>
+            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Add Status</button>
+        </form>
+    </div>
+</div>

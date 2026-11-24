@@ -113,7 +113,7 @@ class OrderRepositoryImpl : OrderRepository {
         val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[OrdersTable.trackId] = trackId
             it[OrdersTable.company] = company
-            it[status] = "Shipped"
+            it[status] = "Processing"
             it[updatedAt] = now
         }
 

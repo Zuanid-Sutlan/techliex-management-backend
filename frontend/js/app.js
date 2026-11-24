@@ -21,6 +21,25 @@ class App {
             this.logoutBtn.addEventListener('click', () => this.logout());
         }
 
+        // Setup Global Image Viewer
+        window.openImageViewer = (url) => {
+            const modal = document.getElementById('globalImageViewerModal');
+            const img = document.getElementById('globalImageViewerImg');
+            if (modal && img && url) {
+                img.src = url;
+                modal.classList.remove('hidden');
+            }
+        };
+
+        const closeViewer = document.getElementById('closeImageViewer');
+        const viewerModal = document.getElementById('globalImageViewerModal');
+        if (closeViewer && viewerModal) {
+            closeViewer.addEventListener('click', () => viewerModal.classList.add('hidden'));
+            viewerModal.addEventListener('click', (e) => {
+                if (e.target === viewerModal) viewerModal.classList.add('hidden');
+            });
+        }
+
         // Initial route handling
         this.handleRoute();
     }

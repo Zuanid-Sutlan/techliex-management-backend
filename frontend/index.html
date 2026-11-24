@@ -56,6 +56,14 @@
         </main>
     </div>
 
+    <!-- Global Full-Size Image Viewer Modal -->
+    <div id="globalImageViewerModal" class="modal-overlay hidden" style="background: rgba(0,0,0,0.85); z-index: 2000;">
+        <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; justify-content: center; align-items: center;">
+            <button type="button" id="closeImageViewer" style="position: absolute; top: -45px; right: 0; background: none; border: none; color: white; font-size: 2.5rem; cursor: pointer; z-index: 2001;">&times;</button>
+            <img id="globalImageViewerImg" src="" alt="Full Size" style="max-width: 90vw; max-height: 85vh; border-radius: 8px; object-fit: contain; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
     <!-- Core Scripts -->
     <script>
         const v = new Date().getTime();

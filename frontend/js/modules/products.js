@@ -13,11 +13,42 @@
     const detailsBody = document.getElementById('productDetailsBody');
     const detailTitle = document.getElementById('detailProductTitle');
 
+    const searchInput = document.getElementById('productSearchInput');
+    const userFilterSelect = document.getElementById('productUserFilter');
+
     const userRole = localStorage.getItem('current_role') || 'Member';
     const currentUserId = parseInt(localStorage.getItem('current_user_id') || '0', 10);
 
     let allProducts = [];
     let currentFilter = 'all';
+    let searchTerm = '';
+    let selectedUserFilter = 'all';
+
+    // Setup Creator Filter for Admins
+    if (userRole === 'Admin' && userFilterSelect) {
+        userFilterSelect.style.display = 'block';
+        try {
+            const uRes = await api.get('/users');
+            if (uRes.success && uRes.data) {
+                userFilterSelect.innerHTML = '<option value="all">All Creators</option>' +
+                    uRes.data.map(u => `<option value="${u.name}">${u.name} (${u.username})</option>`).join('');
+            }
+        } catch (e) {
+            console.error("Failed to load users for product filter", e);
+        }
+
+        userFilterSelect.addEventListener('change', (e) => {
+            selectedUserFilter = e.target.value;
+            renderProducts();
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.toLowerCase().trim();
+            renderProducts();
+        });
+    }
 
     // Filter tab clicks
     document.querySelectorAll('.product-tab').forEach(tab => {
@@ -52,14 +83,39 @@
 
     function renderProducts() {
         let filtered = allProducts;
+
+        // Status tab filter
         if (currentFilter === 'needs_warehouse') {
-            filtered = allProducts.filter(p => !p.warehousePrice || p.warehousePrice === 0 || Number(p.warehousePrice) === 0);
+            filtered = filtered.filter(p => !p.warehousePrice || p.warehousePrice === 0 || Number(p.warehousePrice) === 0);
+        }
+
+        // Creator filter
+        if (selectedUserFilter !== 'all') {
+            filtered = filtered.filter(p => p.creatorName === selectedUserFilter);
+        }
+
+        // Search term filter
+        if (searchTerm) {
+            filtered = filtered.filter(p =>
+                (p.title && p.title.toLowerCase().includes(searchTerm)) ||
+                (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+                (p.creatorName && p.creatorName.toLowerCase().includes(searchTerm))
+            );
         }
 
         if (filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No products found matching this filter</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No products found matching your criteria</td></tr>';
             return;
         }
+
+        // Smart Sorting: Products needing warehouse info come to the top
+        filtered.sort((a, b) => {
+            const needsWhA = !a.warehousePrice || a.warehousePrice === 0 || Number(a.warehousePrice) === 0;
+            const needsWhB = !b.warehousePrice || b.warehousePrice === 0 || Number(b.warehousePrice) === 0;
+            if (needsWhA && !needsWhB) return -1;
+            if (!needsWhA && needsWhB) return 1;
+            return b.id - a.id; // Recent first
+        });
 
         tbody.innerHTML = filtered.map(p => {
             const needsWh = !p.warehousePrice || p.warehousePrice === 0 || Number(p.warehousePrice) === 0;
@@ -68,6 +124,7 @@
                     <td style="padding: 1rem 0;">#${p.id}</td>
                     <td style="padding: 1rem 0; font-weight: bold;">
                         ${p.title}
+                        <br><small style="color: var(--text-secondary);">Creator: ${p.creatorName || 'Admin'}</small>
                         ${needsWh && (userRole === 'Admin' || userRole === 'Warehouse') ? '<span style="margin-left: 8px; background: #fee2e2; color: #991b1b; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem;">Needs Warehouse Info</span>' : ''}
                     </td>
                     <td style="padding: 1rem 0;">$${p.sourcePrice}</td>
@@ -119,9 +176,20 @@
                 const isOwner = p.userId === currentUserId;
                 const canManageShares = (userRole === 'Admin' || isOwner);
 
+                // Fetch all system users for checkbox sharing
+                let allUsers = [];
+                try {
+                    const userRes = await api.get('/users');
+                    if (userRes.success && userRes.data) {
+                        allUsers = userRes.data;
+                    }
+                } catch (e) {
+                    console.error("Failed to load users for sharing", e);
+                }
+
                 let html = `
                     <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
-                        <img src="${p.productImageUrl}" alt="${p.title}" style="width: 150px; height: 150px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-color);">
+                        <img src="${p.productImageUrl}" alt="${p.title}" onclick="window.openImageViewer('${p.productImageUrl}')" style="width: 150px; height: 150px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-color); cursor: zoom-in;" title="Click to view full size">
                         <div style="flex: 1;">
                             <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">${p.description || 'No description provided.'}</p>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
@@ -144,22 +212,38 @@
                     html += `
                         <div style="margin-top: 1rem;">
                             <strong>Warehouse Inspection / Alternative Image:</strong><br>
-                            <img src="${p.warehouseImageUrl}" alt="Warehouse Inspection" style="max-width: 200px; max-height: 150px; border-radius: 6px; margin-top: 0.5rem; border: 1px solid var(--border-color);">
+                            <img src="${p.warehouseImageUrl}" alt="Warehouse Inspection" onclick="window.openImageViewer('${p.warehouseImageUrl}')" style="max-width: 200px; max-height: 150px; border-radius: 6px; margin-top: 0.5rem; border: 1px solid var(--border-color); cursor: zoom-in;" title="Click to view full size">
                         </div>
                     `;
                 }
 
-                // Shared Members Section
+                // Shared Members Checkboxes Section
                 html += `
                     <div style="margin-top: 1rem; background: var(--background-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
-                        <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);"><i class="fas fa-share-alt"></i> Shared With Members</h4>
+                        <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);"><i class="fas fa-share-alt"></i> Share With Members</h4>
                         <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-                            ${p.sharedUsernames && p.sharedUsernames.length > 0 ? p.sharedUsernames.join(', ') : 'Not shared with anyone yet.'}
+                            Currently shared with: <strong>${p.sharedUsernames && p.sharedUsernames.length > 0 ? p.sharedUsernames.join(', ') : 'None'}</strong>
                         </p>
                         ${canManageShares ? `
-                            <form id="productSharesForm" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                                <input type="text" id="shareUsernamesInput" class="form-control" placeholder="Enter usernames comma-separated (e.g. user1, user2)" value="${p.sharedUsernames ? p.sharedUsernames.join(', ') : ''}">
-                                <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Update Shares</button>
+                            <form id="productSharesForm" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+                                <div style="max-height: 150px; overflow-y: auto; background: var(--surface-color); padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 6px;">
+                                    ${allUsers.length > 0 ? allUsers.map(u => {
+                                        const isOwner = u.id === p.userId;
+                                        const isAdmin = u.role === 'Admin';
+                                        const isProtected = isOwner || isAdmin;
+                                        const isChecked = isProtected || (p.sharedUsernames && p.sharedUsernames.includes(u.username));
+                                        return `
+                                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; cursor: ${isProtected ? 'not-allowed' : 'pointer'}; padding: 4px 0; border-bottom: 1px solid #f3f4f6; opacity: ${isProtected ? '0.7' : '1'};">
+                                                <input type="checkbox" class="share-user-checkbox" value="${u.username}" ${isChecked ? 'checked' : ''} ${isProtected ? 'disabled' : ''}>
+                                                <span><strong>${u.username}</strong> (${u.name} - <span style="color: var(--primary-color);">${u.role}</span>)
+                                                    ${isOwner ? '<span style="font-size:0.75rem; color:#6b7280; font-style:italic;">(Self / Owner)</span>' : ''}
+                                                    ${isAdmin && !isOwner ? '<span style="font-size:0.75rem; color:#6b7280; font-style:italic;">(Admin)</span>' : ''}
+                                                </span>
+                                            </label>
+                                        `;
+                                    }).join('') : '<p style="font-size: 0.85rem; color: var(--text-secondary);">No other users available.</p>'}
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="align-self: flex-end; padding: 0.4rem 1.25rem;">Update Shares</button>
                             </form>
                         ` : '<p style="font-size: 0.8rem; font-style: italic; color: var(--text-secondary);">Only the product creator or an Admin can modify shares.</p>'}
                     </div>
@@ -210,8 +294,14 @@
                 if (sharesForm) {
                     sharesForm.addEventListener('submit', async (evt) => {
                         evt.preventDefault();
-                        const rawUsernames = document.getElementById('shareUsernamesInput').value;
-                        const shareWithUsernames = rawUsernames.split(',').map(u => u.trim()).filter(u => u.length > 0);
+                        const checkedCheckboxes = document.querySelectorAll('.share-user-checkbox:checked');
+                        let shareWithUsernames = Array.from(checkedCheckboxes).map(cb => cb.value);
+
+                        allUsers.forEach(u => {
+                            if ((u.id === p.userId || u.role === 'Admin') && !shareWithUsernames.includes(u.username)) {
+                                shareWithUsernames.push(u.username);
+                            }
+                        });
 
                         try {
                             const shareRes = await api.patch(`/products/${productId}/shares`, {
@@ -387,7 +477,7 @@
 
     if (addBtn) addBtn.addEventListener('click', openModal);
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (cancelBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
     // Modal behavior for Details
     if (closeDetailsModalBtn) closeDetailsModalBtn.addEventListener('click', () => detailsModal.classList.add('hidden'));

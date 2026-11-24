@@ -169,7 +169,7 @@ fun Route.orderRoutes(
                 val updatedOrder = updateLogisticsUseCase(orderId, req.trackId, req.company)
                     ?: return@patch call.respond(HttpStatusCode.NotFound, ApiResponse<Unit>(false, "Order not found"))
 
-                call.respond(HttpStatusCode.OK, ApiResponse(true, "Logistics updated and order shipped", updatedOrder.toDto()))
+                call.respond(HttpStatusCode.OK, ApiResponse(true, "Logistics updated and order set to Processing", updatedOrder.toDto()))
             }
 
             // Mark order as Completed

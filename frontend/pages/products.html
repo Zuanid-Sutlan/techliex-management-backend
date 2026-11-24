@@ -6,8 +6,17 @@
     <button class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Product</button>
 </div>
 
+<!-- Search & Creator Filter Bar -->
+<div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <input type="text" id="productSearchInput" class="form-control" placeholder="Search by product title or description..." style="flex: 2; min-width: 220px;">
+    <select id="productUserFilter" class="form-control" style="flex: 1; min-width: 160px; display: none;">
+        <option value="all">All Creators</option>
+        <!-- Populated via JS -->
+    </select>
+</div>
+
 <!-- Filter Tabs -->
-<div id="productTabs" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+<div id="productTabs" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; overflow-x: auto;">
     <span class="product-tab active-tab" data-filter="all" style="cursor: pointer; font-weight: bold; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 0.25rem;">All Products</span>
     <span class="product-tab" data-filter="needs_warehouse" style="cursor: pointer; color: var(--text-secondary); padding-bottom: 0.25rem;">Needs Warehouse Info</span>
 </div>

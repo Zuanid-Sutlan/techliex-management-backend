@@ -5,6 +5,8 @@
             const stats = response.data;
             document.getElementById('stat-products').textContent = stats.productCount || 0;
             document.getElementById('stat-orders').textContent = stats.activeOrdersCount || 0;
+            document.getElementById('stat-tracking').textContent = stats.pendingTrackingCount || 0;
+            document.getElementById('stat-support').textContent = stats.unreadSupportCount || 0;
 
             // Format revenue
             const revenue = stats.totalEarnings || 0;
