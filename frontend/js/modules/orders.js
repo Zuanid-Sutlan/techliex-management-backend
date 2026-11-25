@@ -148,6 +148,12 @@
             if (isCompletedA && !isCompletedB) return 1; // A goes down
             if (!isCompletedA && isCompletedB) return -1; // B goes down
 
+            const unreadA = (userRole === 'Admin' || userRole === 'Warehouse') ? firstA.hasUnreadByAdmin : firstA.hasUnreadByUser;
+            const unreadB = (userRole === 'Admin' || userRole === 'Warehouse') ? firstB.hasUnreadByAdmin : firstB.hasUnreadByUser;
+
+            if (unreadA && !unreadB) return -1;
+            if (!unreadA && unreadB) return 1;
+
             const needsAttentionA = firstA.status === 'Refund Requested' || (firstA.status === 'Active' && !firstA.trackId);
             const needsAttentionB = firstB.status === 'Refund Requested' || (firstB.status === 'Active' && !firstB.trackId);
 
@@ -160,16 +166,18 @@
         let html = '<div style="display: flex; flex-direction: column; gap: 1rem;">';
         for (const [orderNumber, items] of orderEntries) {
             const first = items[0];
+            const hasUnread = (userRole === 'Admin' || userRole === 'Warehouse') ? first.hasUnreadByAdmin : first.hasUnreadByUser;
             const needsAttention = first.status === 'Refund Requested' || (first.status === 'Active' && !first.trackId);
 
             html += `
-                <div class="card" style="margin-bottom: 0; border-left: 4px solid ${needsAttention ? 'var(--danger-color)' : 'var(--primary-color)'};">
+                <div class="card" style="margin-bottom: 0; border-left: 4px solid ${hasUnread ? 'var(--warning-color)' : (needsAttention ? 'var(--danger-color)' : 'var(--primary-color)')};">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
                         <div>
                             <h3 style="color: var(--text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 10px;">
                                 ${orderNumber}
                                 <span style="background: #e0e7ff; color: #4338ca; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem;">${first.status}</span>
-                                ${needsAttention ? '<span style="background: #fee2e2; color: #991b1b; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem;">Needs Attention</span>' : ''}
+                                ${hasUnread ? '<span style="background: #fef08a; color: #854d0e; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;"><i class="fas fa-envelope"></i> Unread Message</span>' : ''}
+                                ${needsAttention && !hasUnread ? '<span style="background: #fee2e2; color: #991b1b; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem;">Needs Attention</span>' : ''}
                             </h3>
                             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Buyer: <strong style="color: var(--text-primary);">${first.userName || 'Member'}</strong> | Date: ${first.orderDate || 'N/A'} | Items: ${items.length}</p>
                         </div>
@@ -574,9 +582,19 @@
                         <div id="chatMessagesContainer" style="max-height: 200px; overflow-y: auto; background: var(--surface-color); padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; display: flex; flex-direction: column; gap: 0.5rem;">
                             <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center;">Loading messages...</p>
                         </div>
-                        <form id="chatMessageForm" style="display: flex; gap: 0.5rem;">
-                            <input type="text" id="chatInputText" class="form-control" placeholder="Type support message..." required>
-                            <button type="submit" class="btn btn-primary">Send</button>
+                        <form id="chatMessageForm" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <div id="chatImagePreviewContainer" style="display: none; align-items: center; gap: 0.5rem;">
+                                <img id="chatImagePreview" src="" style="height: 50px; border-radius: 4px; border: 1px solid var(--border-color); object-fit: cover;">
+                                <button type="button" id="chatRemoveImageBtn" class="btn btn-outline" style="padding: 0.1rem 0.3rem; font-size: 0.75rem; color: var(--danger-color); border-color: transparent;">&times;</button>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <label for="chatImageInput" class="btn btn-outline" style="padding: 0.4rem 0.6rem; cursor: pointer; color: var(--text-secondary);" title="Attach Image">
+                                    <i class="fas fa-image"></i>
+                                    <input type="file" id="chatImageInput" accept="image/*" style="display: none;">
+                                </label>
+                                <input type="text" id="chatInputText" class="form-control" placeholder="Type support message..." required style="flex: 1;">
+                                <button type="submit" class="btn btn-primary">Send</button>
+                            </div>
                         </form>
                     </div>
                 `;
@@ -672,13 +690,47 @@
 
                 const chatForm = document.getElementById('chatMessageForm');
                 if (chatForm) {
+                    let chatAttachedImageBase64 = null;
+                    const chatImageInput = document.getElementById('chatImageInput');
+                    const chatImagePreviewContainer = document.getElementById('chatImagePreviewContainer');
+                    const chatImagePreview = document.getElementById('chatImagePreview');
+                    const chatRemoveImageBtn = document.getElementById('chatRemoveImageBtn');
+
+                    if (chatImageInput) {
+                        chatImageInput.addEventListener('change', async (e) => {
+                            if (e.target.files && e.target.files[0]) {
+                                try {
+                                    chatAttachedImageBase64 = await fileToBase64(e.target.files[0]);
+                                    chatImagePreview.src = chatAttachedImageBase64;
+                                    chatImagePreviewContainer.style.display = 'flex';
+                                } catch (err) {
+                                    alert("Failed to read image file.");
+                                }
+                            }
+                        });
+                    }
+
+                    if (chatRemoveImageBtn) {
+                        chatRemoveImageBtn.addEventListener('click', () => {
+                            chatAttachedImageBase64 = null;
+                            chatImageInput.value = '';
+                            chatImagePreview.src = '';
+                            chatImagePreviewContainer.style.display = 'none';
+                        });
+                    }
+
                     chatForm.addEventListener('submit', async (evt) => {
                         evt.preventDefault();
                         const text = document.getElementById('chatInputText').value;
+                        const payload = { message: text };
+                        if (chatAttachedImageBase64) {
+                            payload.screenshots = [chatAttachedImageBase64];
+                        }
                         try {
-                            const msgRes = await api.post(`/orders/${o.id}/refund/messages`, { message: text });
+                            const msgRes = await api.post(`/orders/${o.id}/refund/messages`, payload);
                             if (msgRes.success) {
                                 document.getElementById('chatInputText').value = '';
+                                if (chatRemoveImageBtn) chatRemoveImageBtn.click();
                                 await loadChatMessages(o.id);
                             } else {
                                 alert(msgRes.message || 'Failed to send message');
@@ -737,15 +789,20 @@
                     return;
                 }
 
-                chatContainer.innerHTML = res.data.map(m => `
-                    <div style="background: var(--surface-color); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                            <strong style="font-size: 0.85rem; color: var(--primary-color);">${m.senderName} (${m.senderRole})</strong>
-                            <small style="font-size: 0.75rem; color: var(--text-secondary);">${new Date(m.createdAt).toLocaleTimeString()}</small>
+                chatContainer.innerHTML = res.data.map(m => {
+                    const hasImages = m.screenshots && m.screenshots.length > 0;
+                    const imagesHtml = hasImages ? m.screenshots.map(src => `<img src="${src}" onclick="window.openImageViewer('${src}')" style="max-height: 100px; border-radius: 4px; border: 1px solid var(--border-color); margin-top: 0.5rem; cursor: zoom-in;" title="Click to view full size">`).join('') : '';
+                    return `
+                        <div style="background: var(--surface-color); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                <strong style="font-size: 0.85rem; color: var(--primary-color);">${m.senderName} (${m.senderRole})</strong>
+                                <small style="font-size: 0.75rem; color: var(--text-secondary);">${new Date(m.createdAt).toLocaleTimeString()}</small>
+                            </div>
+                            <p style="font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0;">${m.message}</p>
+                            ${hasImages ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${imagesHtml}</div>` : ''}
                         </div>
-                        <p style="font-size: 0.9rem; color: var(--text-primary);">${m.message}</p>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
         } catch (e) {
@@ -755,8 +812,14 @@
         }
     }
 
-    if (closeDetailsModalBtn) closeDetailsModalBtn.addEventListener('click', () => detailsModal.classList.add('hidden'));
-    if (closeDetailsBtn) closeDetailsBtn.addEventListener('click', () => detailsModal.classList.add('hidden'));
+    if (closeDetailsModalBtn) closeDetailsModalBtn.addEventListener('click', () => {
+        detailsModal.classList.add('hidden');
+        loadOrders(); // Refresh to remove unread badges
+    });
+    if (closeDetailsBtn) closeDetailsBtn.addEventListener('click', () => {
+        detailsModal.classList.add('hidden');
+        loadOrders(); // Refresh to remove unread badges
+    });
 
     await loadCatalog();
     loadOrders();

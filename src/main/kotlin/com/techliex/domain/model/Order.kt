@@ -21,6 +21,8 @@ data class Order(
     val trackId: String,
     val company: String,
     val status: String,
+    val hasUnreadByUser: Boolean = false,
+    val hasUnreadByAdmin: Boolean = false,
     val createdAt: String,
     val updatedAt: String = ""
 )

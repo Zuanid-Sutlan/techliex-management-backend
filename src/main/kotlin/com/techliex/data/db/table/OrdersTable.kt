@@ -23,6 +23,8 @@ object OrdersTable : Table("orders") {
     val trackId = varchar("track_id", 100).default("")
     val company = varchar("company", 100).default("")
     val status = varchar("status", 50).default("Active")
+    val hasUnreadByUser = bool("has_unread_by_user").default(false)
+    val hasUnreadByAdmin = bool("has_unread_by_admin").default(false)
     val createdAt = varchar("created_at", 50)
     val updatedAt = varchar("updated_at", 50).default("")
 

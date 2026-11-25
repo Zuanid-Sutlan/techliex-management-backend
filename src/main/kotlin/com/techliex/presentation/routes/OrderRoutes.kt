@@ -20,7 +20,8 @@ fun Route.orderRoutes(
     sendRefundMessageUseCase: SendRefundMessageUseCase,
     getRefundMessagesUseCase: GetRefundMessagesUseCase,
     deleteOrderUseCase: DeleteOrderUseCase,
-    deleteOrderRefundMessagesUseCase: DeleteOrderRefundMessagesUseCase
+    deleteOrderRefundMessagesUseCase: DeleteOrderRefundMessagesUseCase,
+    orderRepository: com.techliex.domain.repository.OrderRepository
 ) {
     route("/api/v1/orders") {
         authenticate("auth-jwt") {
@@ -303,6 +304,9 @@ fun Route.orderRoutes(
                 if (principal.role != "Admin" && principal.role != "Warehouse" && existingOrder.userId != principal.id) {
                     return@get call.respond(HttpStatusCode.Forbidden, ApiResponse<Unit>(false, "Access denied"))
                 }
+
+                // Clear the unread flags when messages are fetched
+                orderRepository.markRefundMessagesRead(orderId, principal.role)
 
                 val messages = getRefundMessagesUseCase(orderId).map { it.toDto() }
                 call.respond(HttpStatusCode.OK, ApiResponse(true, "Refund messages retrieved", messages))

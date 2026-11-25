@@ -3,7 +3,7 @@ package com.techliex.data.repository
 import com.techliex.data.db.*
 import com.techliex.data.db.table.OrdersTable
 import com.techliex.data.db.table.ProductsTable
-import com.techliex.data.db.table.RefundMessagesTable
+
 import com.techliex.domain.model.DashboardStats
 import com.techliex.domain.repository.DashboardRepository
 import org.jetbrains.exposed.sql.*
@@ -16,8 +16,7 @@ class DashboardRepositoryImpl : DashboardRepository {
             val pendingWarehouse = ProductsTable.selectAll().where { ProductsTable.warehousePrice eq java.math.BigDecimal.ZERO }.count()
             val activeOrders = OrdersTable.selectAll().where { OrdersTable.status neq "Completed" }.count()
             val pendingTracking = OrdersTable.selectAll().where { (OrdersTable.trackId eq "") and (OrdersTable.status neq "Completed") }.count()
-            val unreadSupport = OrdersTable.innerJoin(RefundMessagesTable, { OrdersTable.id }, { RefundMessagesTable.orderId })
-                .selectAll().where { OrdersTable.status eq "Refund Requested" }.withDistinct().count()
+            val unreadSupport = OrdersTable.selectAll().where { OrdersTable.hasUnreadByAdmin eq true }.count()
             val totalEarnings = OrdersTable.selectAll()
                 .where { OrdersTable.status eq "Completed" }
                 .sumOf { row ->
@@ -52,8 +51,7 @@ class DashboardRepositoryImpl : DashboardRepository {
                 .where { (OrdersTable.userId eq userId) and (OrdersTable.trackId eq "") and (OrdersTable.status neq "Completed") }
                 .count()
 
-            val unreadSupport = OrdersTable.innerJoin(RefundMessagesTable, { OrdersTable.id }, { RefundMessagesTable.orderId })
-                .selectAll().where { (OrdersTable.userId eq userId) and (OrdersTable.status eq "Refund Requested") }.withDistinct().count()
+            val unreadSupport = OrdersTable.selectAll().where { (OrdersTable.userId eq userId) and (OrdersTable.hasUnreadByUser eq true) }.count()
 
             val totalEarnings = OrdersTable.selectAll()
                 .where { (OrdersTable.userId eq userId) and (OrdersTable.status eq "Completed") }

@@ -80,6 +80,8 @@ class OrderRepositoryImpl : OrderRepository {
             it[OrdersTable.trackId] = ""
             it[OrdersTable.company] = ""
             it[OrdersTable.status] = "Active"
+            it[OrdersTable.hasUnreadByUser] = false
+            it[OrdersTable.hasUnreadByAdmin] = false
             it[OrdersTable.createdAt] = now
             it[OrdersTable.updatedAt] = now
         } get OrdersTable.id
@@ -180,6 +182,17 @@ class OrderRepositoryImpl : OrderRepository {
             .map { rowToRefundMessage(it) }
     }
 
+    override suspend fun markRefundMessagesRead(orderId: Long, userRole: String): Boolean = DatabaseFactory.dbQuery {
+        val updatedRows = OrdersTable.update({ OrdersTable.id eq orderId }) {
+            if (userRole == "Admin" || userRole == "Warehouse") {
+                it[hasUnreadByAdmin] = false
+            } else {
+                it[hasUnreadByUser] = false
+            }
+        }
+        updatedRows > 0
+    }
+
     override suspend fun deleteOrder(orderId: Long): Boolean = DatabaseFactory.dbQuery {
         RefundMessagesTable.deleteWhere { RefundMessagesTable.orderId eq orderId }
         OrdersTable.deleteWhere { OrdersTable.id eq orderId } > 0
@@ -202,6 +215,11 @@ class OrderRepositoryImpl : OrderRepository {
 
         OrdersTable.update({ OrdersTable.id eq orderId }) {
             it[updatedAt] = now
+            if (senderRole == "Admin" || senderRole == "Warehouse") {
+                it[hasUnreadByUser] = true
+            } else {
+                it[hasUnreadByAdmin] = true
+            }
         }
 
         val generatedId = RefundMessagesTable.insert {
@@ -286,6 +304,8 @@ class OrderRepositoryImpl : OrderRepository {
             trackId = row[OrdersTable.trackId],
             company = row[OrdersTable.company],
             status = row[OrdersTable.status],
+            hasUnreadByUser = row[OrdersTable.hasUnreadByUser],
+            hasUnreadByAdmin = row[OrdersTable.hasUnreadByAdmin],
             createdAt = storedCreatedAt,
             updatedAt = effectiveUpdatedAt
         )
