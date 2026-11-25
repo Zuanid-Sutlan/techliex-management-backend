@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div id="globalLoader"></div>
     <div id="app" class="app-container">
         <!-- Sidebar Navigation (Hidden on Login) -->
         <aside id="sidebar" class="sidebar hidden">
@@ -56,6 +57,9 @@
             <!-- Dynamic views will be loaded here -->
         </main>
     </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer"></div>
 
     <!-- Global Full-Size Image Viewer Modal -->
     <div id="globalImageViewerModal" class="modal-overlay hidden" style="background: rgba(0,0,0,0.85); z-index: 2000;">
