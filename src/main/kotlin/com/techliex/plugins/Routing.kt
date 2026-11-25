@@ -98,7 +98,8 @@ fun Application.configureRouting() {
             sendRefundMessageUseCase,
             getRefundMessagesUseCase,
             deleteOrderUseCase,
-            deleteOrderRefundMessagesUseCase
+            deleteOrderRefundMessagesUseCase,
+            orderRepository
         )
         dashboardRoutes(getDashboardStatsUseCase)
     }

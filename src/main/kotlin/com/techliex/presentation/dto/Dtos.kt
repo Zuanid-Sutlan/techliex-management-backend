@@ -249,6 +249,8 @@ data class OrderDto(
     val trackId: String = "",
     val company: String = "",
     val status: String = "Active",
+    val hasUnreadByUser: Boolean = false,
+    val hasUnreadByAdmin: Boolean = false,
     val createdAt: String = "",
     val updatedAt: String = ""
 )
@@ -274,6 +276,8 @@ fun Order.toDto(): OrderDto = OrderDto(
     trackId = trackId,
     company = company,
     status = status,
+    hasUnreadByUser = hasUnreadByUser,
+    hasUnreadByAdmin = hasUnreadByAdmin,
     createdAt = createdAt,
     updatedAt = updatedAt.ifEmpty { createdAt }
 )
